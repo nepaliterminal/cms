@@ -6,8 +6,8 @@ const C = {
   cardHover: "#162040", red: "#FF3B5C", gold: "#FFD700", green: "#00C853",
 };
 
-const ADMIN_USER = "dcaa";
-const ADMIN_PASS = "abhinavaahan";
+const ADMIN_USER = import.meta.env.VITE_ADMIN_USER;
+const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASS;
 const CATS = ["Local News","Schools","Sports","Events","Student Spotlight","Opinion","Weather"];
 
 const inputStyle = {
