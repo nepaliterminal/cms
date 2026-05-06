@@ -57,7 +57,7 @@ function timeAgo(str) {
 
 async function sendEmail(payload) {
   try {
-    const { error } = await supabase.functions.invoke("notify-worker", {
+    const { error } = await supabase.functions.invoke("notify-writer", {
       body: JSON.stringify(payload),
       headers: { "Content-Type": "application/json" },
     });
