@@ -583,10 +583,11 @@ function Dashboard({ articles, writers, settings, setSetting, saveSettings, setT
 }
 
 // ── SUBMISSIONS TAB ───────────────────────────────────────────────────────────
-function Submissions({ articles, openId, setOpenId, editArt, setEditArt, dataLoading, loadArticles, rejectReason, setRejectReason, emailStatus, onSetStatus, onToggleFlag, onToggleFeature, onDelete, onSaveEdit }) {
-  const [search, setSearch]   = useState("");
-  const [fStatus, setFStatus] = useState("all");
-  const [fCat, setFCat]       = useState("all");
+function Submissions({ articles, openId, setOpenId, editArt, setEditArt, dataLoading, loadArticles, rejectReason, setRejectReason, emailStatus, onSetStatus, onToggleFlag, onToggleFeature, onDelete, onSaveEdit, subscriberCount }) {
+  const [search, setSearch]     = useState("");
+  const [fStatus, setFStatus]   = useState("all");
+  const [fCat, setFCat]         = useState("all");
+  const [sendToNL, setSendToNL] = useState(false);
 
   const filtered = articles.filter(a => {
     const ms = (a.headline || "").toLowerCase().includes(search.toLowerCase()) || (a.name || "").toLowerCase().includes(search.toLowerCase());
@@ -719,8 +720,18 @@ function Submissions({ articles, openId, setOpenId, editArt, setEditArt, dataLoa
                   <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.blue, marginBottom: 12, fontWeight: 600 }}>⏳ {emailStatus}</div>
                 )}
 
+                {/* Newsletter option */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", marginBottom: 8, borderTop: `1px solid ${T.divider}` }}>
+                  <input type="checkbox" id={`nl-${a.id}`} checked={sendToNL} onChange={e => setSendToNL(e.target.checked)} style={{ width: 15, height: 15, cursor: "pointer", accentColor: T.accent }} />
+                  <label htmlFor={`nl-${a.id}`} style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.sub, cursor: "pointer" }}>
+                    Also send to newsletter subscribers
+                    {subscriberCount > 0 && <span style={{ color: T.muted, marginLeft: 5 }}>({subscriberCount} subscriber{subscriberCount !== 1 ? "s" : ""})</span>}
+                    {subscriberCount === 0 && <span style={{ color: T.muted, marginLeft: 5 }}>(no subscribers yet)</span>}
+                  </label>
+                </div>
+
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <Btn variant="green" size="sm" onClick={() => onSetStatus(a.id, "approved")}>✅ Approve{a.email ? " + Email" : ""}</Btn>
+                  <Btn variant="green" size="sm" onClick={() => { onSetStatus(a.id, "approved", sendToNL); setSendToNL(false); }}>✅ Approve{a.email ? " + Email" : ""}{sendToNL ? " + Newsletter" : ""}</Btn>
                   <Btn variant="red"   size="sm" onClick={() => onSetStatus(a.id, "rejected")}>❌ Reject{a.email ? " + Email" : ""}</Btn>
                   <Btn variant="gold"  size="sm" onClick={() => onSetStatus(a.id, "pending")}>↩ Pending</Btn>
                   <Btn variant="accent" size="sm" onClick={() => setEditArt(a)}>✏️ Edit</Btn>
@@ -738,17 +749,18 @@ function Submissions({ articles, openId, setOpenId, editArt, setEditArt, dataLoa
 }
 
 // ── PUBLISH TAB ───────────────────────────────────────────────────────────────
-function Publish({ onPublish, imgUploading }) {
-  const [title,      setTitle]      = useState("");
-  const [author,     setAuthor]     = useState("");
-  const [school,     setSchool]     = useState("");
-  const [cat,        setCat]        = useState("Local News");
-  const [body,       setBody]       = useState("");
-  const [date,       setDate]       = useState("");
-  const [imgFile,    setImgFile]    = useState(null);
-  const [imgPreview, setImgPreview] = useState("");
-  const [imgUrl,     setImgUrl]     = useState("");
-  const [featured,   setFeatured]   = useState(false);
+function Publish({ onPublish, imgUploading, subscriberCount }) {
+  const [title,        setTitle]        = useState("");
+  const [author,       setAuthor]       = useState("");
+  const [school,       setSchool]       = useState("");
+  const [cat,          setCat]          = useState("Local News");
+  const [body,         setBody]         = useState("");
+  const [date,         setDate]         = useState("");
+  const [imgFile,      setImgFile]      = useState(null);
+  const [imgPreview,   setImgPreview]   = useState("");
+  const [imgUrl,       setImgUrl]       = useState("");
+  const [featured,     setFeatured]     = useState(false);
+  const [sendNewsletter, setSendNewsletter] = useState(false);
 
   const wordCount = body.trim().split(/\s+/).filter(Boolean).length;
 
@@ -763,7 +775,7 @@ function Publish({ onPublish, imgUploading }) {
 
   function clear() {
     setTitle(""); setAuthor(""); setSchool(""); setBody(""); setDate(""); setCat("Local News");
-    setImgFile(null); setImgPreview(""); setImgUrl(""); setFeatured(false);
+    setImgFile(null); setImgPreview(""); setImgUrl(""); setFeatured(false); setSendNewsletter(false);
   }
 
   return (
@@ -815,7 +827,7 @@ function Publish({ onPublish, imgUploading }) {
           <input type="datetime-local" value={date} onChange={e => setDate(e.target.value)} style={INP} />
         </Field>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderTop: `1px solid ${T.border}`, marginBottom: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderTop: `1px solid ${T.border}` }}>
           <div>
             <div style={{ fontFamily: "Inter,sans-serif", fontWeight: 700, fontSize: 13, color: T.text }}>Pin to Homepage</div>
             <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: T.muted, marginTop: 2 }}>Feature this article prominently</div>
@@ -823,13 +835,24 @@ function Publish({ onPublish, imgUploading }) {
           <Toggle value={featured} onChange={() => setFeatured(f => !f)} />
         </div>
 
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderTop: `1px solid ${T.border}`, marginBottom: 18 }}>
+          <div>
+            <div style={{ fontFamily: "Inter,sans-serif", fontWeight: 700, fontSize: 13, color: T.text }}>Send to Newsletter</div>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: T.muted, marginTop: 2 }}>
+              Email all {subscriberCount} subscriber{subscriberCount !== 1 ? "s" : ""} when published
+              {date ? " (won't send for scheduled articles)" : ""}
+            </div>
+          </div>
+          <Toggle value={sendNewsletter} onChange={() => setSendNewsletter(f => !f)} />
+        </div>
+
         <div style={{ display: "flex", gap: 10 }}>
           <Btn
             fullWidth size="lg"
             disabled={imgUploading}
-            onClick={() => onPublish({ title, author, school, cat, body, date, imgFile, imgUrl, featured }, clear)}
+            onClick={() => onPublish({ title, author, school, cat, body, date, imgFile, imgUrl, featured, sendNewsletter }, clear)}
           >
-            {imgUploading ? "Uploading…" : date ? "Schedule Article" : "Publish Now"}
+            {imgUploading ? "Uploading…" : date ? "Schedule Article" : sendNewsletter ? `Publish + Notify ${subscriberCount} subscribers` : "Publish Now"}
           </Btn>
           <Btn variant="ghost" onClick={clear}>Clear</Btn>
         </div>
@@ -981,7 +1004,7 @@ function Polls({ pollQ, setPollQ, pollOpts, setPollOpts, onSave }) {
 }
 
 // ── ANALYTICS TAB ─────────────────────────────────────────────────────────────
-function Analytics({ articles, writers }) {
+function Analytics({ articles, writers, subscribers, onRefreshSubs }) {
   const approved     = articles.filter(a => a.status === "approved");
   const pending      = articles.filter(a => a.status === "pending").length;
   const rejected     = articles.filter(a => a.status === "rejected").length;
@@ -1003,6 +1026,7 @@ function Analytics({ articles, writers }) {
         <StatCard label="Active Writers" value={activeW} color={T.text} />
         <StatCard label="Pending"        value={pending} color={T.gold} />
         <StatCard label="Approval Rate"  value={`${approvalRate}%`} color={approvalRate > 60 ? T.green : T.red} />
+        <StatCard label="Subscribers"    value={(subscribers || []).length} color={T.teal} sub={`${(subscribers || []).filter(s => s.active).length} active`} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
@@ -1055,6 +1079,46 @@ function Analytics({ articles, writers }) {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Newsletter subscribers */}
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, padding: 20, borderRadius: 3, marginTop: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 10, borderBottom: `2px solid ${T.border}` }}>
+          <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 16, color: T.text }}>
+            Newsletter Subscribers
+            <span style={{ fontFamily: "Inter,sans-serif", fontWeight: 400, fontSize: 12, color: T.muted, marginLeft: 10 }}>{(subscribers || []).length} total · {(subscribers || []).filter(s => s.active).length} active</span>
+          </div>
+          <Btn variant="ghost" size="sm" onClick={onRefreshSubs}>↻ Refresh</Btn>
+        </div>
+        {(subscribers || []).length === 0 ? (
+          <Empty icon="📧" title="No subscribers yet." sub="Subscribers from the website appear here." />
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter,sans-serif", fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: `2px solid ${T.border}` }}>
+                  {["Email", "Source", "Status", "Signed Up"].map(h => (
+                    <th key={h} style={{ textAlign: "left", padding: "6px 12px", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.8, color: T.muted }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(subscribers || []).map(s => (
+                  <tr key={s.id} className="row-hover" style={{ borderBottom: `1px solid ${T.divider}` }}>
+                    <td style={{ padding: "10px 12px", color: T.text, fontWeight: 600 }}>{s.email}</td>
+                    <td style={{ padding: "10px 12px", color: T.muted }}>{s.source || "website"}</td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <span style={{ background: s.active ? T.green + "20" : T.red + "20", color: s.active ? T.green : T.red, fontWeight: 700, fontSize: 11, padding: "2px 8px", borderRadius: 10 }}>
+                        {s.active ? "Active" : "Unsubscribed"}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px 12px", color: T.muted }}>{fmtDate(s.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1145,6 +1209,7 @@ export default function CMS() {
   const [imgUploading,  setImgUploading]  = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved,  setSettingsSaved]  = useState(false);
+  const [subscribers,    setSubscribers]    = useState([]);
   const [rejectReason,  setRejectReason]  = useState("");
   const [emailStatus,   setEmailStatus]   = useState("");
   const [wAdding,       setWAdding]       = useState(false);
@@ -1191,12 +1256,31 @@ export default function CMS() {
     if (data) setSettings(s => ({ ...s, ...data }));
   }, []);
 
+  const loadSubscribers = useCallback(async () => {
+    const { data } = await supabase.from("newsletter_subscribers").select("*").order("created_at", { ascending: false });
+    if (data) setSubscribers(data);
+  }, []);
+
   useEffect(() => {
-    if (loggedIn) { loadArticles(); loadWriters(); loadSettings(); }
-  }, [loggedIn, loadArticles, loadWriters, loadSettings]);
+    if (loggedIn) { loadArticles(); loadWriters(); loadSettings(); loadSubscribers(); }
+  }, [loggedIn, loadArticles, loadWriters, loadSettings, loadSubscribers]);
+
+  // ── Newsletter blast ───────────────────────────────────────────────────────
+  async function sendNewsletterBlast(article) {
+    const active = subscribers.filter(s => s.active).map(s => s.email);
+    if (active.length === 0) { showToast("No active subscribers to send to.", T.gold); return; }
+    const sent = await sendEmail({
+      status: "newsletter",
+      emails: active,
+      headline: article.headline || "New story",
+      excerpt:  (article.body || "").slice(0, 280),
+      author:   article.name || "KrynoluxDC",
+    });
+    showToast(sent ? `📧 Newsletter sent to ${active.length} subscriber${active.length !== 1 ? "s" : ""}!` : "Newsletter send failed.", sent ? T.green : T.red);
+  }
 
   // ── Article actions ────────────────────────────────────────────────────────
-  async function onSetStatus(id, status) {
+  async function onSetStatus(id, status, sendNewsletter = false) {
     const article = articles.find(a => a.id === id);
     const { error } = await supabase.from("submissions").update({ status }).eq("id", id);
     if (error) { showToast("Update failed: " + error.message, T.red); return; }
@@ -1214,6 +1298,7 @@ export default function CMS() {
     } else {
       showToast(status === "approved" ? "✅ Published." : status === "rejected" ? "❌ Rejected." : "↩ Set to pending.", status === "approved" ? T.green : status === "rejected" ? T.red : T.gold);
     }
+    if (status === "approved" && sendNewsletter && article) await sendNewsletterBlast(article);
     setRejectReason("");
     setOpenId(null);
   }
@@ -1256,7 +1341,7 @@ export default function CMS() {
     return data.publicUrl;
   }
 
-  async function onPublish({ title, author, school, cat, body, date, imgFile, imgUrl, featured }, clear) {
+  async function onPublish({ title, author, school, cat, body, date, imgFile, imgUrl, featured, sendNewsletter }, clear) {
     if (!title.trim() || !author.trim()) { showToast("Headline and author are required.", T.red); return; }
     let imageUrl = imgUrl;
     if (imgFile) { imageUrl = await uploadImg(imgFile); if (!imageUrl) return; }
@@ -1267,6 +1352,7 @@ export default function CMS() {
     }]).select();
     if (!error && data) {
       setArticles(prev => [data[0], ...prev]);
+      if (sendNewsletter && !date) await sendNewsletterBlast(data[0]);
       clear();
       showToast(date ? "Article scheduled." : "Article published live.");
       navigate("submissions");
@@ -1336,12 +1422,12 @@ export default function CMS() {
 
   const tabContent = {
     dashboard:   <Dashboard articles={articles} writers={writers} settings={settings} setSetting={setSetting} saveSettings={onSaveSettings} setTab={navigate} setOpenId={setOpenId} dataLoading={dataLoading} pollOpts={pollOpts} />,
-    submissions: <Submissions articles={articles} openId={openId} setOpenId={setOpenId} editArt={editArt} setEditArt={setEditArt} dataLoading={dataLoading} loadArticles={loadArticles} rejectReason={rejectReason} setRejectReason={setRejectReason} emailStatus={emailStatus} onSetStatus={onSetStatus} onToggleFlag={onToggleFlag} onToggleFeature={onToggleFeature} onDelete={onDelete} onSaveEdit={onSaveEdit} />,
-    publish:     <Publish onPublish={onPublish} imgUploading={imgUploading} />,
+    submissions: <Submissions articles={articles} openId={openId} setOpenId={setOpenId} editArt={editArt} setEditArt={setEditArt} dataLoading={dataLoading} loadArticles={loadArticles} rejectReason={rejectReason} setRejectReason={setRejectReason} emailStatus={emailStatus} onSetStatus={onSetStatus} onToggleFlag={onToggleFlag} onToggleFeature={onToggleFeature} onDelete={onDelete} onSaveEdit={onSaveEdit} subscriberCount={subscribers.length} />,
+    publish:     <Publish onPublish={onPublish} imgUploading={imgUploading} subscriberCount={subscribers.length} />,
     media:       <Media articles={articles} />,
     writers:     <Writers writers={writers} wAdding={wAdding} onAdd={onAddWriter} onUpdateBadge={onUpdateBadge} onToggle={onToggleWriter} onDelete={onDeleteWriter} />,
     polls:       <Polls pollQ={pollQ} setPollQ={setPollQ} pollOpts={pollOpts} setPollOpts={setPollOpts} onSave={onSavePoll} />,
-    analytics:   <Analytics articles={articles} writers={writers} />,
+    analytics:   <Analytics articles={articles} writers={writers} subscribers={subscribers} onRefreshSubs={loadSubscribers} />,
     settings:    <Settings settings={settings} setSetting={setSetting} onSave={onSaveSettings} saving={settingsSaving} saved={settingsSaved} />,
   };
 
