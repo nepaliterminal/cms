@@ -33,6 +33,7 @@ const TABS = [
   { id: "publish",     label: "Publish",      icon: "✎" },
   { id: "media",       label: "Media",        icon: "⊞" },
   { id: "writers",     label: "Writers",      icon: "◉" },
+  { id: "schools",     label: "Schools",      icon: "⬡" },
   { id: "polls",       label: "Polls",        icon: "◑" },
   { id: "analytics",   label: "Analytics",    icon: "▲" },
   { id: "settings",    label: "Settings",     icon: "⚙" },
@@ -1195,6 +1196,136 @@ function Settings({ settings, setSetting, onSave, saving, saved }) {
   );
 }
 
+// ── SCHOOLS TAB ───────────────────────────────────────────────────────────────
+function Schools({ schools, onApprove, onReject, loading }) {
+  const [rejectId, setRejectId]     = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [expanded, setExpanded]     = useState(null);
+
+  const pending  = schools.filter(s => s.status === "pending");
+  const approved = schools.filter(s => s.status === "approved");
+  const rejected = schools.filter(s => s.status === "rejected");
+
+  function SchoolRow({ school, actions }) {
+    const open = expanded === school.id;
+    return (
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, marginBottom: 8, borderLeft: `4px solid ${school.status === "approved" ? T.green : school.status === "rejected" ? T.red : T.gold}` }}>
+        <div
+          onClick={() => setExpanded(open ? null : school.id)}
+          style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 15, color: T.text }}>{school.school_name}</span>
+              <StatusBadge status={school.status} />
+              {school.county && <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: T.muted, background: T.bg, padding: "2px 8px", borderRadius: 10 }}>{school.county}</span>}
+            </div>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted, marginTop: 4 }}>
+              {school.contact_name} · {school.contact_email} · Applied {fmtDate(school.created_at)}
+            </div>
+          </div>
+          <span style={{ color: T.muted, fontSize: 12 }}>{open ? "▲" : "▼"}</span>
+        </div>
+
+        {open && (
+          <div className="expand-down" style={{ borderTop: `1px solid ${T.border}`, padding: "16px 18px" }}>
+            {school.description && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase", color: T.muted, marginBottom: 6 }}>About / Reason</div>
+                <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: T.sub, lineHeight: 1.6, background: T.bg, padding: "10px 14px", borderRadius: 3 }}>{school.description}</div>
+              </div>
+            )}
+            {school.rejection_reason && (
+              <div style={{ marginBottom: 14, background: "#fdf0f0", borderLeft: `3px solid ${T.red}`, padding: "10px 14px", borderRadius: "0 3px 3px 0" }}>
+                <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: T.red, marginBottom: 4 }}>REJECTION REASON</div>
+                <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: T.sub }}>{school.rejection_reason}</div>
+              </div>
+            )}
+            {actions && <div style={{ display: "flex", gap: 8 }}>{actions}</div>}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="tab-enter">
+      <SectionHead
+        section="Partner Schools" title="School Accounts"
+        sub="Schools that have applied to publish student journalism on KrynoluxDC."
+      />
+
+      <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginBottom: 28 }}>
+        <StatCard label="Pending"  value={pending.length}  color={T.gold}  sub={pending.length > 0 ? "Needs review" : "All clear"} subColor={pending.length > 0 ? T.gold : T.green} />
+        <StatCard label="Approved" value={approved.length} color={T.green} sub="Active partners" />
+        <StatCard label="Rejected" value={rejected.length} color={T.red} />
+      </div>
+
+      {loading && <div style={{ textAlign: "center", padding: 40, color: T.muted, fontFamily: "Inter,sans-serif", fontSize: 13 }}>Loading…</div>}
+
+      {!loading && pending.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: T.gold, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ background: T.gold, color: "#fff", borderRadius: "50%", width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>{pending.length}</span>
+            Pending Applications
+          </div>
+          {pending.map(s => (
+            <SchoolRow key={s.id} school={s} actions={[
+              <Btn key="a" variant="green" size="sm" onClick={() => onApprove(s)}>✓ Approve</Btn>,
+              <Btn key="r" variant="danger" size="sm" onClick={() => { setRejectId(s.id); setExpanded(s.id); }}>✕ Reject</Btn>,
+            ]} />
+          ))}
+        </div>
+      )}
+
+      {!loading && approved.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: T.green, marginBottom: 12 }}>Approved Schools</div>
+          {approved.map(s => (
+            <SchoolRow key={s.id} school={s} actions={[
+              <Btn key="r" variant="danger" size="sm" onClick={() => { setRejectId(s.id); setExpanded(s.id); }}>Revoke</Btn>,
+            ]} />
+          ))}
+        </div>
+      )}
+
+      {!loading && rejected.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: T.muted, marginBottom: 12 }}>Rejected</div>
+          {rejected.map(s => <SchoolRow key={s.id} school={s} />)}
+        </div>
+      )}
+
+      {!loading && schools.length === 0 && (
+        <Empty icon="🏫" title="No school applications yet" sub="Schools will appear here once they apply via the School Portal on krynolux.work." />
+      )}
+
+      {/* Reject / Revoke modal */}
+      {rejectId && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={() => { setRejectId(null); setRejectReason(""); }}>
+          <div style={{ background: T.card, width: "100%", maxWidth: 440, padding: 28, boxShadow: "0 16px 48px rgba(0,0,0,0.3)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 18, color: T.text, marginBottom: 16 }}>Reject / Revoke School</div>
+            <Field label="Reason (sent to school)">
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                rows={3}
+                placeholder="Optional — explain why the application was rejected…"
+                style={{ ...INP, resize: "vertical" }}
+              />
+            </Field>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <Btn variant="ghost" onClick={() => { setRejectId(null); setRejectReason(""); }}>Cancel</Btn>
+              <Btn variant="red" onClick={() => { onReject(rejectId, rejectReason); setRejectId(null); setRejectReason(""); }}>Confirm Reject</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── MAIN CMS ──────────────────────────────────────────────────────────────────
 export default function CMS() {
   const [loggedIn,      setLoggedIn]      = useState(false);
@@ -1210,6 +1341,8 @@ export default function CMS() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved,  setSettingsSaved]  = useState(false);
   const [subscribers,    setSubscribers]    = useState([]);
+  const [schools,        setSchools]        = useState([]);
+  const [schoolsLoading, setSchoolsLoading] = useState(false);
   const [rejectReason,  setRejectReason]  = useState("");
   const [emailStatus,   setEmailStatus]   = useState("");
   const [wAdding,       setWAdding]       = useState(false);
@@ -1235,6 +1368,7 @@ export default function CMS() {
     setTabKey(k => k + 1);
     if (id === "submissions") loadArticles();
     if (id === "writers")     loadWriters();
+    if (id === "schools")     loadSchools();
   }
 
   const loadArticles = useCallback(async () => {
@@ -1261,9 +1395,17 @@ export default function CMS() {
     if (data) setSubscribers(data);
   }, []);
 
+  const loadSchools = useCallback(async () => {
+    setSchoolsLoading(true);
+    const { data, error } = await supabase.from("school_accounts").select("*").order("created_at", { ascending: false });
+    if (data)  setSchools(data);
+    if (error) showToast("Error loading schools: " + error.message, T.red);
+    setSchoolsLoading(false);
+  }, []);
+
   useEffect(() => {
-    if (loggedIn) { loadArticles(); loadWriters(); loadSettings(); loadSubscribers(); }
-  }, [loggedIn, loadArticles, loadWriters, loadSettings, loadSubscribers]);
+    if (loggedIn) { loadArticles(); loadWriters(); loadSettings(); loadSubscribers(); loadSchools(); }
+  }, [loggedIn, loadArticles, loadWriters, loadSettings, loadSubscribers, loadSchools]);
 
   // ── Newsletter blast ───────────────────────────────────────────────────────
   async function sendNewsletterBlast(article) {
@@ -1392,6 +1534,26 @@ export default function CMS() {
     else showToast("Failed: " + error.message, T.red);
   }
 
+  // ── School actions ─────────────────────────────────────────────────────────
+  async function onApproveSchool(school) {
+    const { error } = await supabase.from("school_accounts").update({ status: "approved", approved_at: new Date().toISOString(), rejection_reason: "" }).eq("id", school.id);
+    if (error) { showToast("Failed: " + error.message, T.red); return; }
+    setSchools(prev => prev.map(s => s.id === school.id ? { ...s, status: "approved", approved_at: new Date().toISOString() } : s));
+    await sendEmail({ status: "school_approved", name: school.contact_name, email: school.contact_email, school_name: school.school_name });
+    showToast(`✓ ${school.school_name} approved — email sent.`);
+  }
+
+  async function onRejectSchool(id, reason) {
+    const school = schools.find(s => s.id === id);
+    const { error } = await supabase.from("school_accounts").update({ status: "rejected", rejection_reason: reason || "" }).eq("id", id);
+    if (error) { showToast("Failed: " + error.message, T.red); return; }
+    setSchools(prev => prev.map(s => s.id === id ? { ...s, status: "rejected", rejection_reason: reason } : s));
+    if (school?.contact_email) {
+      await sendEmail({ status: "school_rejected", name: school.contact_name, email: school.contact_email, school_name: school.school_name, reason });
+    }
+    showToast("School rejected — email sent.", T.red);
+  }
+
   // ── Settings actions ───────────────────────────────────────────────────────
   async function onSaveSettings() {
     setSettingsSaving(true);
@@ -1412,6 +1574,7 @@ export default function CMS() {
   // ── Computed ───────────────────────────────────────────────────────────────
   const pending = articles.filter(a => a.status === "pending").length;
   const flagged = articles.filter(a => a.flagged).length;
+  const pendingSchools = schools.filter(s => s.status === "pending").length;
 
   if (!loggedIn) return (
     <>
@@ -1427,6 +1590,7 @@ export default function CMS() {
     media:       <Media articles={articles} />,
     writers:     <Writers writers={writers} wAdding={wAdding} onAdd={onAddWriter} onUpdateBadge={onUpdateBadge} onToggle={onToggleWriter} onDelete={onDeleteWriter} />,
     polls:       <Polls pollQ={pollQ} setPollQ={setPollQ} pollOpts={pollOpts} setPollOpts={setPollOpts} onSave={onSavePoll} />,
+    schools:     <Schools schools={schools} onApprove={onApproveSchool} onReject={onRejectSchool} loading={schoolsLoading} />,
     analytics:   <Analytics articles={articles} writers={writers} subscribers={subscribers} onRefreshSubs={loadSubscribers} />,
     settings:    <Settings settings={settings} setSetting={setSetting} onSave={onSaveSettings} saving={settingsSaving} saved={settingsSaved} />,
   };
@@ -1479,6 +1643,9 @@ export default function CMS() {
                     )}
                     {t.id === "submissions" && flagged > 0 && (
                       <span style={{ background: T.orange, color: "#fff", fontSize: 9, fontWeight: 900, padding: "1px 5px", borderRadius: 8 }}>{flagged}</span>
+                    )}
+                    {t.id === "schools" && pendingSchools > 0 && (
+                      <span style={{ background: T.gold, color: "#fff", fontSize: 9, fontWeight: 900, padding: "1px 5px", borderRadius: 8 }}>{pendingSchools}</span>
                     )}
                   </div>
                 </button>
