@@ -1,0 +1,30 @@
+{
+  "name": "KrynoluxDC CMS",
+  "short_name": "KDC CMS",
+  "description": "KrynoluxDC Editorial Management System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111318",
+  "theme_color": "#111318",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo-circle.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-circle.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-circle.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
