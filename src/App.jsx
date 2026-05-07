@@ -1197,28 +1197,49 @@ function Settings({ settings, setSetting, onSave, saving, saved }) {
 }
 
 // ── SCHOOLS TAB ───────────────────────────────────────────────────────────────
-function Schools({ schools, onApprove, onReject, loading }) {
-  const [rejectId, setRejectId]     = useState(null);
-  const [rejectReason, setRejectReason] = useState("");
-  const [expanded, setExpanded]     = useState(null);
+function toSlug(name) {
+  return name.toLowerCase()
+    .replace(/high school|middle school|elementary school|academy|school/gi, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 24) || "school";
+}
+
+function Schools({ schools, onApprove, onReject, onDeleteSubdomain, loading }) {
+  const [approveTarget, setApproveTarget] = useState(null);
+  const [subdomain,     setSubdomain]     = useState("");
+  const [rejectId,      setRejectId]      = useState(null);
+  const [rejectReason,  setRejectReason]  = useState("");
+  const [expanded,      setExpanded]      = useState(null);
 
   const pending  = schools.filter(s => s.status === "pending");
   const approved = schools.filter(s => s.status === "approved");
   const rejected = schools.filter(s => s.status === "rejected");
 
+  function openApprove(school) {
+    setSubdomain(toSlug(school.school_name));
+    setApproveTarget(school);
+  }
+
   function SchoolRow({ school, actions }) {
     const open = expanded === school.id;
+    const borderColor = school.status === "approved" ? T.green : school.status === "rejected" ? T.red : T.gold;
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, marginBottom: 8, borderLeft: `4px solid ${school.status === "approved" ? T.green : school.status === "rejected" ? T.red : T.gold}` }}>
-        <div
-          onClick={() => setExpanded(open ? null : school.id)}
-          style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
-        >
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, marginBottom: 8, borderLeft: `4px solid ${borderColor}` }}>
+        <div onClick={() => setExpanded(open ? null : school.id)}
+          style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 15, color: T.text }}>{school.school_name}</span>
               <StatusBadge status={school.status} />
               {school.county && <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: T.muted, background: T.bg, padding: "2px 8px", borderRadius: 10 }}>{school.county}</span>}
+              {school.subdomain && (
+                <a href={`https://${school.subdomain}.krynolux.work`} target="_blank" rel="noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: T.accent, background: T.accent + "12", padding: "2px 8px", borderRadius: 10, textDecoration: "none" }}>
+                  ↗ {school.subdomain}.krynolux.work
+                </a>
+              )}
             </div>
             <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted, marginTop: 4 }}>
               {school.contact_name} · {school.contact_email} · Applied {fmtDate(school.created_at)}
@@ -1241,7 +1262,7 @@ function Schools({ schools, onApprove, onReject, loading }) {
                 <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: T.sub }}>{school.rejection_reason}</div>
               </div>
             )}
-            {actions && <div style={{ display: "flex", gap: 8 }}>{actions}</div>}
+            {actions && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{actions}</div>}
           </div>
         )}
       </div>
@@ -1250,15 +1271,21 @@ function Schools({ schools, onApprove, onReject, loading }) {
 
   return (
     <div className="tab-enter">
-      <SectionHead
-        section="Partner Schools" title="School Accounts"
-        sub="Schools that have applied to publish student journalism on KrynoluxDC."
-      />
+      <SectionHead section="Partner Schools" title="School Accounts"
+        sub="Schools that have applied to publish student journalism on KrynoluxDC." />
 
       <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginBottom: 28 }}>
         <StatCard label="Pending"  value={pending.length}  color={T.gold}  sub={pending.length > 0 ? "Needs review" : "All clear"} subColor={pending.length > 0 ? T.gold : T.green} />
         <StatCard label="Approved" value={approved.length} color={T.green} sub="Active partners" />
         <StatCard label="Rejected" value={rejected.length} color={T.red} />
+      </div>
+
+      {/* DNS notice */}
+      <div style={{ background: T.accent + "10", border: `1px solid ${T.accent}30`, borderLeft: `4px solid ${T.accent}`, padding: "12px 16px", marginBottom: 24, borderRadius: "0 4px 4px 0" }}>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.accent, fontWeight: 700, marginBottom: 4 }}>DNS Setup Required</div>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.sub, lineHeight: 1.6 }}>
+          For subdomains to work, add a wildcard DNS record: <code style={{ background: T.bg, padding: "1px 6px", borderRadius: 3 }}>* CNAME krynolux.work</code> in your DNS provider. Each approved school gets their own subdomain automatically.
+        </div>
       </div>
 
       {loading && <div style={{ textAlign: "center", padding: 40, color: T.muted, fontFamily: "Inter,sans-serif", fontSize: 13 }}>Loading…</div>}
@@ -1271,7 +1298,7 @@ function Schools({ schools, onApprove, onReject, loading }) {
           </div>
           {pending.map(s => (
             <SchoolRow key={s.id} school={s} actions={[
-              <Btn key="a" variant="green" size="sm" onClick={() => onApprove(s)}>✓ Approve</Btn>,
+              <Btn key="a" variant="green" size="sm" onClick={() => openApprove(s)}>✓ Approve</Btn>,
               <Btn key="r" variant="danger" size="sm" onClick={() => { setRejectId(s.id); setExpanded(s.id); }}>✕ Reject</Btn>,
             ]} />
           ))}
@@ -1283,6 +1310,9 @@ function Schools({ schools, onApprove, onReject, loading }) {
           <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: T.green, marginBottom: 12 }}>Approved Schools</div>
           {approved.map(s => (
             <SchoolRow key={s.id} school={s} actions={[
+              s.subdomain
+                ? <Btn key="d" variant="ghost" size="sm" style={{ color: T.red, borderColor: T.red + "66" }} onClick={() => onDeleteSubdomain(s)}>✕ Delete Subdomain</Btn>
+                : <Btn key="sd" variant="ghost" size="sm" onClick={() => openApprove(s)}>+ Add Subdomain</Btn>,
               <Btn key="r" variant="danger" size="sm" onClick={() => { setRejectId(s.id); setExpanded(s.id); }}>Revoke</Btn>,
             ]} />
           ))}
@@ -1300,20 +1330,60 @@ function Schools({ schools, onApprove, onReject, loading }) {
         <Empty icon="🏫" title="No school applications yet" sub="Schools will appear here once they apply via the School Portal on krynolux.work." />
       )}
 
-      {/* Reject / Revoke modal */}
+      {/* ── Approve confirm modal ── */}
+      {approveTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={() => setApproveTarget(null)}>
+          <div style={{ background: T.card, width: "100%", maxWidth: 480, boxShadow: "0 20px 60px rgba(0,0,0,0.35)", borderTop: `4px solid ${T.green}` }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: "24px 28px 20px", borderBottom: `1px solid ${T.border}` }}>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: T.green, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 8 }}>Confirm Approval</div>
+              <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 20, color: T.text }}>Are you sure?</div>
+            </div>
+            <div style={{ padding: "20px 28px 24px" }}>
+              <div style={{ background: T.bg, border: `1px solid ${T.border}`, padding: "12px 16px", borderRadius: 4, marginBottom: 20 }}>
+                <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted, marginBottom: 2 }}>School</div>
+                <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 16, color: T.text }}>{approveTarget.school_name}</div>
+                <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted, marginTop: 4 }}>{approveTarget.contact_name} · {approveTarget.contact_email}</div>
+              </div>
+
+              <Field label="Subdomain" hint="Lowercase letters and hyphens only. This becomes their news page URL.">
+                <div style={{ display: "flex", alignItems: "center", border: `1px solid ${T.inputBorder}`, borderRadius: 3, overflow: "hidden", background: T.input }}>
+                  <input
+                    value={subdomain}
+                    onChange={e => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/^-/, ""))}
+                    style={{ flex: 1, padding: "9px 12px", border: "none", background: "transparent", fontFamily: "Inter,sans-serif", fontSize: 14, color: T.text, outline: "none" }}
+                    placeholder="school-slug"
+                  />
+                  <span style={{ padding: "9px 12px", background: T.bg, borderLeft: `1px solid ${T.inputBorder}`, fontFamily: "Inter,sans-serif", fontSize: 13, color: T.muted, whiteSpace: "nowrap" }}>.krynolux.work</span>
+                </div>
+              </Field>
+
+              {subdomain && (
+                <div style={{ background: T.green + "12", border: `1px solid ${T.green}33`, borderRadius: 4, padding: "10px 14px", marginBottom: 16, fontFamily: "Inter,sans-serif", fontSize: 13, color: T.green }}>
+                  ✓ Will create: <strong>https://{subdomain}.krynolux.work</strong>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn variant="ghost" onClick={() => setApproveTarget(null)}>Cancel</Btn>
+                <Btn variant="green" disabled={!subdomain} onClick={() => { onApprove(approveTarget, subdomain); setApproveTarget(null); }}>
+                  Approve & Create Subdomain →
+                </Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reject / Revoke modal ── */}
       {rejectId && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
           onClick={() => { setRejectId(null); setRejectReason(""); }}>
           <div style={{ background: T.card, width: "100%", maxWidth: 440, padding: 28, boxShadow: "0 16px 48px rgba(0,0,0,0.3)" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 18, color: T.text, marginBottom: 16 }}>Reject / Revoke School</div>
             <Field label="Reason (sent to school)">
-              <textarea
-                value={rejectReason}
-                onChange={e => setRejectReason(e.target.value)}
-                rows={3}
-                placeholder="Optional — explain why the application was rejected…"
-                style={{ ...INP, resize: "vertical" }}
-              />
+              <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3}
+                placeholder="Optional — explain why the application was rejected…" style={{ ...INP, resize: "vertical" }} />
             </Field>
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <Btn variant="ghost" onClick={() => { setRejectId(null); setRejectReason(""); }}>Cancel</Btn>
@@ -1535,12 +1605,20 @@ export default function CMS() {
   }
 
   // ── School actions ─────────────────────────────────────────────────────────
-  async function onApproveSchool(school) {
-    const { error } = await supabase.from("school_accounts").update({ status: "approved", approved_at: new Date().toISOString(), rejection_reason: "" }).eq("id", school.id);
+  async function onApproveSchool(school, subdomain) {
+    const { error } = await supabase.from("school_accounts").update({ status: "approved", approved_at: new Date().toISOString(), rejection_reason: "", subdomain }).eq("id", school.id);
     if (error) { showToast("Failed: " + error.message, T.red); return; }
-    setSchools(prev => prev.map(s => s.id === school.id ? { ...s, status: "approved", approved_at: new Date().toISOString() } : s));
-    await sendEmail({ status: "school_approved", name: school.contact_name, email: school.contact_email, school_name: school.school_name });
-    showToast(`✓ ${school.school_name} approved — email sent.`);
+    setSchools(prev => prev.map(s => s.id === school.id ? { ...s, status: "approved", subdomain } : s));
+    await sendEmail({ status: "school_approved", name: school.contact_name, email: school.contact_email, school_name: school.school_name, subdomain: `https://${subdomain}.krynolux.work` });
+    showToast(`✓ ${school.school_name} approved — ${subdomain}.krynolux.work created.`);
+  }
+
+  async function onDeleteSubdomain(school) {
+    if (!window.confirm(`Delete subdomain "${school.subdomain}.krynolux.work" for ${school.school_name}? The school account stays approved but their subdomain page will stop working.`)) return;
+    const { error } = await supabase.from("school_accounts").update({ subdomain: null }).eq("id", school.id);
+    if (error) { showToast("Failed: " + error.message, T.red); return; }
+    setSchools(prev => prev.map(s => s.id === school.id ? { ...s, subdomain: null } : s));
+    showToast(`Subdomain deleted for ${school.school_name}.`, T.gold);
   }
 
   async function onRejectSchool(id, reason) {
@@ -1590,7 +1668,7 @@ export default function CMS() {
     media:       <Media articles={articles} />,
     writers:     <Writers writers={writers} wAdding={wAdding} onAdd={onAddWriter} onUpdateBadge={onUpdateBadge} onToggle={onToggleWriter} onDelete={onDeleteWriter} />,
     polls:       <Polls pollQ={pollQ} setPollQ={setPollQ} pollOpts={pollOpts} setPollOpts={setPollOpts} onSave={onSavePoll} />,
-    schools:     <Schools schools={schools} onApprove={onApproveSchool} onReject={onRejectSchool} loading={schoolsLoading} />,
+    schools:     <Schools schools={schools} onApprove={onApproveSchool} onReject={onRejectSchool} onDeleteSubdomain={onDeleteSubdomain} loading={schoolsLoading} />,
     analytics:   <Analytics articles={articles} writers={writers} subscribers={subscribers} onRefreshSubs={loadSubscribers} />,
     settings:    <Settings settings={settings} setSetting={setSetting} onSave={onSaveSettings} saving={settingsSaving} saved={settingsSaved} />,
   };
