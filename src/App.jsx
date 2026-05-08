@@ -1205,12 +1205,31 @@ function toSlug(name) {
     .slice(0, 24) || "school";
 }
 
-function Schools({ schools, onApprove, onReject, onDeleteSubdomain, loading }) {
+const CMS_DESIGN_COLORS = ["#7B2FFF","#c0392b","#1a6faf","#1e7e34","#d35400","#7d3c98","#2c3e50","#b7950b","#e91e63","#00bcd4"];
+
+function Schools({ schools, onApprove, onReject, onDeleteSubdomain, onDesignOverride, loading }) {
   const [approveTarget, setApproveTarget] = useState(null);
   const [subdomain,     setSubdomain]     = useState("");
   const [rejectId,      setRejectId]      = useState(null);
   const [rejectReason,  setRejectReason]  = useState("");
   const [expanded,      setExpanded]      = useState(null);
+  const [designTarget,  setDesignTarget]  = useState(null);
+  const [design,        setDesign]        = useState({});
+  const [designSaving,  setDesignSaving]  = useState(false);
+  const setD = (k, v) => setDesign(d => ({ ...d, [k]: v }));
+
+  function openDesign(school) {
+    const d = school.design || {};
+    setDesign({ accentColor: d.accentColor || "#7B2FFF", logoUrl: d.logoUrl || "", bannerUrl: d.bannerUrl || "", tagline: d.tagline || "", instagram: d.instagram || "", twitter: d.twitter || "", website: d.website || "" });
+    setDesignTarget(school);
+  }
+
+  async function saveDesignOverride() {
+    setDesignSaving(true);
+    await onDesignOverride(designTarget.id, design);
+    setDesignSaving(false);
+    setDesignTarget(null);
+  }
 
   const pending  = schools.filter(s => s.status === "pending");
   const approved = schools.filter(s => s.status === "approved");
@@ -1311,8 +1330,9 @@ function Schools({ schools, onApprove, onReject, onDeleteSubdomain, loading }) {
           {approved.map(s => (
             <SchoolRow key={s.id} school={s} actions={[
               s.subdomain
-                ? <Btn key="d" variant="ghost" size="sm" style={{ color: T.red, borderColor: T.red + "66" }} onClick={() => onDeleteSubdomain(s)}>✕ Delete Subdomain</Btn>
-                : <Btn key="sd" variant="ghost" size="sm" onClick={() => openApprove(s)}>+ Add Subdomain</Btn>,
+                ? <Btn key="d" variant="ghost" size="sm" style={{ color: T.red, borderColor: T.red + "66" }} onClick={() => onDeleteSubdomain(s)}>✕ Delete Page</Btn>
+                : <Btn key="sd" variant="ghost" size="sm" onClick={() => openApprove(s)}>+ Add Slug</Btn>,
+              <Btn key="des" variant="ghost" size="sm" onClick={() => openDesign(s)}>🎨 Design</Btn>,
               <Btn key="r" variant="danger" size="sm" onClick={() => { setRejectId(s.id); setExpanded(s.id); }}>Revoke</Btn>,
             ]} />
           ))}
@@ -1388,6 +1408,63 @@ function Schools({ schools, onApprove, onReject, onDeleteSubdomain, loading }) {
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <Btn variant="ghost" onClick={() => { setRejectId(null); setRejectReason(""); }}>Cancel</Btn>
               <Btn variant="red" onClick={() => { onReject(rejectId, rejectReason); setRejectId(null); setRejectReason(""); }}>Confirm Reject</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Design Override modal ── */}
+      {designTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={() => setDesignTarget(null)}>
+          <div style={{ background: T.card, width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 16px 48px rgba(0,0,0,0.3)", borderRadius: 4 }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: "20px 24px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 18, color: T.text }}>Design Override — {designTarget.school_name}</div>
+              <button onClick={() => setDesignTarget(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: T.muted }}>×</button>
+            </div>
+
+            {/* Live preview */}
+            <div style={{ margin: "16px 24px", borderRadius: 6, overflow: "hidden", border: `1px solid ${T.border}` }}>
+              <div style={{
+                background: design.bannerUrl ? `linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.6)), url(${design.bannerUrl}) center/cover` : `linear-gradient(135deg, #1a1a2e, ${design.accentColor}cc)`,
+                padding: "20px 18px",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {design.logoUrl
+                    ? <img src={design.logoUrl} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: `2px solid ${design.accentColor}` }} />
+                    : <div style={{ width: 40, height: 40, borderRadius: "50%", background: design.accentColor, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", fontWeight: 900, fontSize: 16, color: "#fff" }}>{designTarget.school_name[0]}</div>
+                  }
+                  <div>
+                    <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 16, color: "#fff" }}>{designTarget.school_name}</div>
+                    {design.tagline && <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>{design.tagline}</div>}
+                  </div>
+                </div>
+              </div>
+              <div style={{ background: T.bg, padding: "6px 12px", fontFamily: "Inter,sans-serif", fontSize: 10, color: T.muted }}>Preview</div>
+            </div>
+
+            <div style={{ padding: "0 24px 24px" }}>
+              {/* Accent color */}
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: T.muted, display: "block", marginBottom: 8, letterSpacing: 0.8, textTransform: "uppercase" }}>Accent Color</label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  {CMS_DESIGN_COLORS.map(c => (
+                    <button key={c} onClick={() => setD("accentColor", c)} style={{ width: 26, height: 26, borderRadius: "50%", background: c, border: design.accentColor === c ? `3px solid ${T.text}` : "3px solid transparent", cursor: "pointer", boxShadow: design.accentColor === c ? "0 0 0 2px #fff, 0 0 0 4px " + T.text : "none" }} />
+                  ))}
+                  <input type="color" value={design.accentColor} onChange={e => setD("accentColor", e.target.value)} style={{ width: 26, height: 26, borderRadius: "50%", border: "none", cursor: "pointer", padding: 0 }} />
+                </div>
+              </div>
+              {[["Logo URL", "logoUrl", "https://school.edu/logo.png"], ["Banner Image URL", "bannerUrl", "https://school.edu/banner.jpg"], ["Tagline", "tagline", "Where student voices are heard"], ["Instagram", "instagram", "@school"], ["Twitter / X", "twitter", "@school"], ["Website", "website", "https://school.edu"]].map(([lbl, key, ph]) => (
+                <div key={key} style={{ marginBottom: 14 }}>
+                  <label style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: T.muted, display: "block", marginBottom: 6, letterSpacing: 0.8, textTransform: "uppercase" }}>{lbl}</label>
+                  <input value={design[key] || ""} onChange={e => setD(key, e.target.value)} placeholder={ph}
+                    style={{ ...INP, marginBottom: 0 }} />
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+                <Btn variant="ghost" onClick={() => setDesignTarget(null)}>Cancel</Btn>
+                <Btn variant="green" onClick={saveDesignOverride} disabled={designSaving}>{designSaving ? "Saving…" : "Save Design"}</Btn>
+              </div>
             </div>
           </div>
         </div>
@@ -1621,6 +1698,13 @@ export default function CMS() {
     showToast(`Subdomain deleted for ${school.school_name}.`, T.gold);
   }
 
+  async function onDesignOverride(schoolId, design) {
+    const { error } = await supabase.from("school_accounts").update({ design }).eq("id", schoolId);
+    if (error) { showToast("Failed: " + error.message, T.red); return; }
+    setSchools(prev => prev.map(s => s.id === schoolId ? { ...s, design } : s));
+    showToast("Design saved.");
+  }
+
   async function onRejectSchool(id, reason) {
     const school = schools.find(s => s.id === id);
     const { error } = await supabase.from("school_accounts").update({ status: "rejected", rejection_reason: reason || "" }).eq("id", id);
@@ -1668,7 +1752,7 @@ export default function CMS() {
     media:       <Media articles={articles} />,
     writers:     <Writers writers={writers} wAdding={wAdding} onAdd={onAddWriter} onUpdateBadge={onUpdateBadge} onToggle={onToggleWriter} onDelete={onDeleteWriter} />,
     polls:       <Polls pollQ={pollQ} setPollQ={setPollQ} pollOpts={pollOpts} setPollOpts={setPollOpts} onSave={onSavePoll} />,
-    schools:     <Schools schools={schools} onApprove={onApproveSchool} onReject={onRejectSchool} onDeleteSubdomain={onDeleteSubdomain} loading={schoolsLoading} />,
+    schools:     <Schools schools={schools} onApprove={onApproveSchool} onReject={onRejectSchool} onDeleteSubdomain={onDeleteSubdomain} onDesignOverride={onDesignOverride} loading={schoolsLoading} />,
     analytics:   <Analytics articles={articles} writers={writers} subscribers={subscribers} onRefreshSubs={loadSubscribers} />,
     settings:    <Settings settings={settings} setSetting={setSetting} onSave={onSaveSettings} saving={settingsSaving} saved={settingsSaved} />,
   };
