@@ -1234,10 +1234,10 @@ function Schools({ schools, onApprove, onReject, onDeleteSubdomain, loading }) {
               <StatusBadge status={school.status} />
               {school.county && <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: T.muted, background: T.bg, padding: "2px 8px", borderRadius: 10 }}>{school.county}</span>}
               {school.subdomain && (
-                <a href={`https://${school.subdomain}.krynolux.work`} target="_blank" rel="noreferrer"
+                <a href={`https://krynolux.work/school/${school.subdomain}`} target="_blank" rel="noreferrer"
                   onClick={e => e.stopPropagation()}
                   style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: T.accent, background: T.accent + "12", padding: "2px 8px", borderRadius: 10, textDecoration: "none" }}>
-                  ↗ {school.subdomain}.krynolux.work
+                  ↗ krynolux.work/school/{school.subdomain}
                 </a>
               )}
             </div>
@@ -1284,7 +1284,7 @@ function Schools({ schools, onApprove, onReject, onDeleteSubdomain, loading }) {
       <div style={{ background: T.accent + "10", border: `1px solid ${T.accent}30`, borderLeft: `4px solid ${T.accent}`, padding: "12px 16px", marginBottom: 24, borderRadius: "0 4px 4px 0" }}>
         <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.accent, fontWeight: 700, marginBottom: 4 }}>DNS Setup Required</div>
         <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.sub, lineHeight: 1.6 }}>
-          For subdomains to work, add a wildcard DNS record: <code style={{ background: T.bg, padding: "1px 6px", borderRadius: 3 }}>* CNAME krynolux.work</code> in your DNS provider. Each approved school gets their own subdomain automatically.
+          Each approved school gets their own page at <code style={{ background: T.bg, padding: "1px 6px", borderRadius: 3 }}>krynolux.work/school/their-slug</code> automatically. No DNS configuration needed.
         </div>
       </div>
 
@@ -1354,20 +1354,20 @@ function Schools({ schools, onApprove, onReject, onDeleteSubdomain, loading }) {
                     style={{ flex: 1, padding: "9px 12px", border: "none", background: "transparent", fontFamily: "Inter,sans-serif", fontSize: 14, color: T.text, outline: "none" }}
                     placeholder="school-slug"
                   />
-                  <span style={{ padding: "9px 12px", background: T.bg, borderLeft: `1px solid ${T.inputBorder}`, fontFamily: "Inter,sans-serif", fontSize: 13, color: T.muted, whiteSpace: "nowrap" }}>.krynolux.work</span>
+                  <span style={{ padding: "9px 12px", background: T.bg, borderLeft: `1px solid ${T.inputBorder}`, fontFamily: "Inter,sans-serif", fontSize: 13, color: T.muted, whiteSpace: "nowrap" }}>(krynolux.work/school/…)</span>
                 </div>
               </Field>
 
               {subdomain && (
                 <div style={{ background: T.green + "12", border: `1px solid ${T.green}33`, borderRadius: 4, padding: "10px 14px", marginBottom: 16, fontFamily: "Inter,sans-serif", fontSize: 13, color: T.green }}>
-                  ✓ Will create: <strong>https://{subdomain}.krynolux.work</strong>
+                  ✓ Will create: <strong>https://krynolux.work/school/{subdomain}</strong>
                 </div>
               )}
 
               <div style={{ display: "flex", gap: 8 }}>
                 <Btn variant="ghost" onClick={() => setApproveTarget(null)}>Cancel</Btn>
                 <Btn variant="green" disabled={!subdomain} onClick={() => { onApprove(approveTarget, subdomain); setApproveTarget(null); }}>
-                  Approve & Create Subdomain →
+                  Approve & Create Page →
                 </Btn>
               </div>
             </div>
@@ -1609,12 +1609,12 @@ export default function CMS() {
     const { error } = await supabase.from("school_accounts").update({ status: "approved", approved_at: new Date().toISOString(), rejection_reason: "", subdomain }).eq("id", school.id);
     if (error) { showToast("Failed: " + error.message, T.red); return; }
     setSchools(prev => prev.map(s => s.id === school.id ? { ...s, status: "approved", subdomain } : s));
-    await sendEmail({ status: "school_approved", name: school.contact_name, email: school.contact_email, school_name: school.school_name, subdomain: `https://${subdomain}.krynolux.work` });
-    showToast(`✓ ${school.school_name} approved — ${subdomain}.krynolux.work created.`);
+    await sendEmail({ status: "school_approved", name: school.contact_name, email: school.contact_email, school_name: school.school_name, subdomain: `https://krynolux.work/school/${subdomain}` });
+    showToast(`✓ ${school.school_name} approved — krynolux.work/school/${subdomain} created.`);
   }
 
   async function onDeleteSubdomain(school) {
-    if (!window.confirm(`Delete subdomain "${school.subdomain}.krynolux.work" for ${school.school_name}? The school account stays approved but their subdomain page will stop working.`)) return;
+    if (!window.confirm(`Delete page "krynolux.work/school/${school.subdomain}" for ${school.school_name}? The school account stays approved but their page will stop working.`)) return;
     const { error } = await supabase.from("school_accounts").update({ subdomain: null }).eq("id", school.id);
     if (error) { showToast("Failed: " + error.message, T.red); return; }
     setSchools(prev => prev.map(s => s.id === school.id ? { ...s, subdomain: null } : s));
