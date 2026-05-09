@@ -1482,7 +1482,10 @@ function Write({ showToast }) {
   const [category, setCategory] = useState(CATS[0]);
   const [excerpt,  setExcerpt]  = useState("");
   const [body,     setBody]     = useState("");
-  const [saving,   setSaving]   = useState(false);
+  const [saving,      setSaving]      = useState(false);
+  const [imgFile,     setImgFile]     = useState(null);
+  const [imgPreview,  setImgPreview]  = useState(null);
+  const [imgUploading,setImgUploading]= useState(false);
   const [aiText,   setAiText]   = useState("");
   const [aiLoading,setAiLoading]= useState(false);
   const [aiAction, setAiAction] = useState(null);
@@ -1524,10 +1527,30 @@ function Write({ showToast }) {
     setAiText("");
   }
 
+  async function uploadImg(file) {
+    setImgUploading(true);
+    const ext  = file.name.split(".").pop();
+    const path = `articles/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("article-images").upload(path, file, { upsert: true });
+    if (error) { showToast("Image upload failed: " + error.message, T.red); setImgUploading(false); return null; }
+    const { data } = supabase.storage.from("article-images").getPublicUrl(path);
+    setImgUploading(false);
+    return data.publicUrl;
+  }
+
+  function onImgChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImgFile(file);
+    setImgPreview(URL.createObjectURL(file));
+  }
+
   async function saveDraft() {
     if (!title.trim()) { showToast("Headline is required.", T.red); return; }
     if (!body.trim())  { showToast("Article body is required.", T.red); return; }
     setSaving(true);
+    let imageUrl = null;
+    if (imgFile) { imageUrl = await uploadImg(imgFile); if (!imageUrl) { setSaving(false); return; } }
     const { error } = await supabase.from("submissions").insert([{
       headline: title.trim(),
       name: author.trim() || "Admin",
@@ -1539,12 +1562,14 @@ function Write({ showToast }) {
       flagged: false,
       featured: false,
       views: 0,
+      image_url: imageUrl,
     }]);
     setSaving(false);
     if (error) showToast("Save failed: " + error.message, T.red);
     else {
       showToast("Draft saved to Submissions.");
       setTitle(""); setAuthor(""); setSchool(""); setExcerpt(""); setBody(""); setAiText("");
+      setImgFile(null); setImgPreview(null);
     }
   }
 
@@ -1591,6 +1616,29 @@ function Write({ showToast }) {
 
           <Field label="Excerpt" hint="2–3 sentence teaser shown on the homepage">
             <textarea style={{ ...INP, minHeight: 68, resize: "vertical" }} value={excerpt} onChange={e => setExcerpt(e.target.value)} placeholder="Short summary of the article…" />
+          </Field>
+
+          <Field label="Cover Image">
+            <div
+              onClick={() => document.getElementById("write-img-input").click()}
+              style={{ border: `2px dashed ${imgPreview ? T.accent : T.inputBorder}`, borderRadius: 4, padding: imgPreview ? 0 : "24px 16px", cursor: "pointer", textAlign: "center", overflow: "hidden", position: "relative" }}
+            >
+              {imgPreview ? (
+                <div style={{ position: "relative" }}>
+                  <img src={imgPreview} alt="cover" style={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }} />
+                  <button
+                    onClick={e => { e.stopPropagation(); setImgFile(null); setImgPreview(null); }}
+                    style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", borderRadius: 3, padding: "4px 8px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+                  >Remove</button>
+                </div>
+              ) : (
+                <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted }}>
+                  <div style={{ fontSize: 24, marginBottom: 6 }}>⊞</div>
+                  {imgUploading ? "Uploading…" : "Click to upload a cover image"}
+                </div>
+              )}
+            </div>
+            <input id="write-img-input" type="file" accept="image/*" onChange={onImgChange} style={{ display: "none" }} />
           </Field>
 
           <Field label="Article Body" required>
