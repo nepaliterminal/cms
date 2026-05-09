@@ -24,68 +24,111 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function tavilySearch(query: string, apiKey: string) {
+  const res = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: apiKey,
+      query,
+      search_depth: "basic",
+      max_results: 5,
+      include_answer: true,
+    }),
+  });
+  if (!res.ok) throw new Error(`Tavily error ${res.status}: ${await res.text()}`);
+  return await res.json();
+}
+
+async function callGroq(messages: object[], apiKey: string) {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: "llama-3.1-8b-instant", max_tokens: 1500, messages }),
+  });
+  if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || "No response.";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
 
   try {
     const { action, content = "", title = "", message = "" } = await req.json();
 
-    let userMsg;
+    const groqKey = Deno.env.get("GROQ_API_KEY");
+    const tavilyKey = Deno.env.get("TAVILY_API_KEY");
+
+    if (!groqKey) {
+      return new Response(JSON.stringify({ error: "GROQ_API_KEY not set" }), {
+        status: 500, headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── RESEARCH action ──────────────────────────────────────────────────────
+    if (action === "research") {
+      if (!tavilyKey) {
+        return new Response(JSON.stringify({ error: "TAVILY_API_KEY not set" }), {
+          status: 500, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+      const query = message || title || content.slice(0, 120);
+      if (!query.trim()) {
+        return new Response(JSON.stringify({ error: "Provide a search query, article title, or body text to research." }), {
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+
+      const searchData = await tavilySearch(query, tavilyKey);
+      const sources = (searchData.results || [])
+        .map((r: { title: string; url: string; content: string }, i: number) =>
+          `[${i + 1}] ${r.title}\n${r.url}\n${r.content?.slice(0, 400)}`
+        )
+        .join("\n\n");
+
+      const synthesis = await callGroq([
+        { role: "system", content: SYSTEM },
+        {
+          role: "user",
+          content: `I'm writing a news article about: "${query}"\n\nHere are web search results:\n\n${sources}\n\nSummarize the key facts, context, and relevant details a journalist should know. Cite the sources by number. Keep it concise and factual.`,
+        },
+      ], groqKey);
+
+      const sourceList = (searchData.results || [])
+        .map((r: { title: string; url: string }, i: number) => `[${i + 1}] ${r.title} — ${r.url}`)
+        .join("\n");
+
+      return new Response(JSON.stringify({ text: synthesis + "\n\n── Sources ──\n" + sourceList }), {
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── All other actions ────────────────────────────────────────────────────
+    let userMsg: string;
     if (action === "chat") {
       userMsg = message || "Hello";
     } else {
       const fn = PROMPTS[action];
       if (!fn) {
         return new Response(JSON.stringify({ error: "Unknown action: " + action }), {
-          status: 400,
-          headers: { ...CORS, "Content-Type": "application/json" },
+          status: 400, headers: { ...CORS, "Content-Type": "application/json" },
         });
       }
       userMsg = fn(content, title);
     }
 
-    const apiKey = Deno.env.get("GROQ_API_KEY");
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "GROQ_API_KEY not set" }), {
-        status: 500,
-        headers: { ...CORS, "Content-Type": "application/json" },
-      });
-    }
-
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
-        max_tokens: 1500,
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: userMsg },
-        ],
-      }),
-    });
-
-    if (!groqRes.ok) {
-      const errBody = await groqRes.text();
-      return new Response(JSON.stringify({ error: `Groq API error ${groqRes.status}: ${errBody}` }), {
-        status: 500,
-        headers: { ...CORS, "Content-Type": "application/json" },
-      });
-    }
-
-    const result = await groqRes.json();
-    const text = result.choices?.[0]?.message?.content || "No response.";
+    const text = await callGroq([
+      { role: "system", content: SYSTEM },
+      { role: "user", content: userMsg },
+    ], groqKey);
 
     return new Response(JSON.stringify({ text }), {
       headers: { ...CORS, "Content-Type": "application/json" },
     });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message || String(err) }), {
-      status: 500,
-      headers: { ...CORS, "Content-Type": "application/json" },
+      status: 500, headers: { ...CORS, "Content-Type": "application/json" },
     });
   }
 });

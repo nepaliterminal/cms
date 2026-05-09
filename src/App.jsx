@@ -1489,8 +1489,12 @@ function Write({ showToast }) {
   const [chat,     setChat]     = useState("");
 
   async function callAI(action, chatMsg = "") {
-    if (!body.trim() && action !== "chat") {
+    if (!body.trim() && action !== "chat" && action !== "research") {
       showToast("Write something in the article body first.", T.gold);
+      return;
+    }
+    if (action === "research" && !chatMsg && !title.trim() && !body.trim()) {
+      showToast("Add a headline or type a search topic in the chat box first.", T.gold);
       return;
     }
     setAiLoading(true);
@@ -1552,6 +1556,7 @@ function Write({ showToast }) {
     { id: "expand",    label: "Expand",            icon: "↕" },
     { id: "shorten",   label: "Shorten",           icon: "↔" },
     { id: "tone",      label: "Check Tone",        icon: "◎" },
+    { id: "research",  label: "Research Web",      icon: "⌕" },
   ];
 
   return (
