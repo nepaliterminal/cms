@@ -1550,13 +1550,13 @@ function Write({ showToast }) {
   }
 
   const AI_ACTIONS = [
-    { id: "improve",   label: "Improve Writing",   icon: "✦" },
-    { id: "headlines", label: "Suggest Headlines", icon: "★" },
-    { id: "intro",     label: "Write Intro",       icon: "¶" },
-    { id: "expand",    label: "Expand",            icon: "↕" },
-    { id: "shorten",   label: "Shorten",           icon: "↔" },
-    { id: "tone",      label: "Check Tone",        icon: "◎" },
-    { id: "research",  label: "Research Web",      icon: "⌕" },
+    { id: "improve",   label: "Improve Writing",  icon: "✦" },
+    { id: "headlines", label: "Subject Lines",    icon: "★" },
+    { id: "intro",     label: "Write Opener",     icon: "¶" },
+    { id: "expand",    label: "Expand",           icon: "↕" },
+    { id: "shorten",   label: "Shorten",          icon: "↔" },
+    { id: "tone",      label: "Check Tone",       icon: "◎" },
+    { id: "research",  label: "Research Web",     icon: "⌕" },
   ];
 
   return (

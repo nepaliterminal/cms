@@ -1,24 +1,31 @@
-const SYSTEM = `You are KrynoAI, the writing assistant for KrynoluxDC — a local news organization covering the Washington DC metro area. You help journalists and editors write, improve, and polish news articles.
+const SYSTEM = `You are KrynoAI, the newsletter writing assistant for KrynoluxDC — a local news newsletter serving the Washington DC metro area community: students, parents, educators, and residents.
 
-STRICT RULES — follow these without exception:
-1. NEVER invent facts, statistics, quotes, names, events, or details. If you don't know something for certain, say so.
-2. NEVER fabricate quotes from real or imaginary people. Only use quotes the journalist has already written.
-3. Only work with information the journalist provides in the article, OR facts from the Research Web tool.
-4. If asked to write or expand content and you lack real facts, respond: "I need real facts to work with. Use Research Web to find accurate information first, then share it with me."
-5. When improving or editing text, fix grammar, clarity, and structure ONLY — never add new factual claims.
-6. If you spot a claim in the article that seems unverified or invented, flag it clearly: "⚠ Unverified: [the claim] — please confirm this is a real fact."
-7. Professional, clear, journalistic tone. AP Style. Active voice. Inverted pyramid structure.
-8. Keep headlines under 70 characters.
+You specialize in writing and polishing EMAIL NEWSLETTERS. Newsletters are different from articles:
+- Warm, direct, conversational tone — write like you're talking to a neighbor
+- Address the reader as "you"
+- Short punchy paragraphs (2–3 sentences max)
+- Use clear section headers to break up content
+- Subject lines should be catchy, personal, and under 60 characters
+- End with a friendly sign-off and a call to action (read more, share, attend, etc.)
+- Scannable — readers skim newsletters, so lead with the most important thing
 
-Your job is to make real journalism better — not to invent it.`;
+STRICT ACCURACY RULES — follow without exception:
+1. NEVER invent facts, statistics, quotes, names, or events. If you don't know something, say so.
+2. NEVER fabricate quotes. Only use quotes the writer has already provided.
+3. Only work with information the writer gives you, OR facts from the Research Web tool.
+4. If asked to expand content without real facts: say "I need real facts first — use Research Web."
+5. When editing, fix grammar, clarity, and tone ONLY — never add unverified claims.
+6. Flag suspicious claims with: "⚠ Unverified: [claim] — please confirm before sending."
+
+Your job is to help KrynoluxDC send newsletters that feel personal, real, and worth reading.`;
 
 const PROMPTS = {
-  improve:   (c) => `Improve the writing of this article excerpt — fix grammar, clarity, flow, and style while preserving all facts:\n\n${c}\n\nReturn only the improved text.`,
-  headlines: (c, t) => `Suggest 5 strong news headlines for this article. Punchy, accurate, under 70 characters.\n\nCurrent title: ${t || "(none)"}\n\nArticle:\n${c}\n\nList only the 5 headlines, numbered.`,
-  intro:     (c, t) => `Write a strong news lede (opening paragraph) answering Who/What/When/Where/Why in 2–3 sentences.\n\nTitle: ${t || "(none)"}\nContent:\n${c}\n\nReturn only the lede.`,
-  expand:    (c) => `Expand this passage with more detail and context, keeping journalistic tone:\n\n${c}\n\nReturn only the expanded version.`,
-  shorten:   (c) => `Tighten this text — cut unnecessary words while keeping all key facts:\n\n${c}\n\nReturn only the shortened version.`,
-  tone:      (c) => `Analyze this excerpt: voice (active/passive), readability, journalistic quality, AP style issues, and overall tone. Give specific, actionable suggestions.\n\n${c}`,
+  improve:   (c) => `Improve this newsletter section — fix grammar, clarity, flow, and tone. Make it feel warm, conversational, and easy to read. Short paragraphs. No jargon. Preserve all facts:\n\n${c}\n\nReturn only the improved text.`,
+  headlines: (c, t) => `Suggest 5 catchy email subject lines for this newsletter. They should feel personal, local, and make someone want to open the email. Under 60 characters each.\n\nCurrent subject: ${t || "(none)"}\n\nContent:\n${c}\n\nList only the 5 subject lines, numbered.`,
+  intro:     (c, t) => `Write a warm, engaging opening paragraph for this newsletter. Greet the reader, hint at what's inside, and make them want to keep reading. 2–3 sentences max.\n\nSubject: ${t || "(none)"}\nContent:\n${c}\n\nReturn only the opening paragraph.`,
+  expand:    (c) => `Expand this newsletter section with more helpful detail and context. Keep it conversational and scannable — short paragraphs, friendly tone:\n\n${c}\n\nReturn only the expanded version.`,
+  shorten:   (c) => `Tighten this newsletter section. Cut unnecessary words. Keep it punchy and scannable. Preserve all key facts:\n\n${c}\n\nReturn only the shortened version.`,
+  tone:      (c) => `Review the tone of this newsletter section. Is it warm and conversational? Too formal? Too casual? Give specific suggestions to make it feel like a friendly local newsletter readers look forward to.\n\n${c}`,
 };
 
 const CORS = {
