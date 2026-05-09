@@ -21,10 +21,10 @@ const T = {
   teal: "#148a7a", divider: "#e8e5df",
 };
 
-const CATS = ["Local News", "Schools", "Sports", "Events", "Student Spotlight", "Opinion", "Weather"];
+const CATS = ["Local News", "Schools", "Sports", "Events", "Student Spotlight", "Opinion", "Weather", "Tech"];
 const CAT_COLOR = {
   "Local News": "#c0392b", "Schools": "#1a6faf", "Sports": "#1e7e34",
-  "Events": "#7d3c98", "Weather": "#d35400", "Opinion": "#2c3e50", "Student Spotlight": "#b7950b",
+  "Events": "#7d3c98", "Weather": "#d35400", "Opinion": "#2c3e50", "Student Spotlight": "#b7950b", "Tech": "#0891b2",
 };
 const BADGES = ["New Writer", "Contributor", "Rising Star", "Staff Writer", "Senior Writer", "Editor", "Top Contributor", "Investigative Reporter"];
 const TABS = [
