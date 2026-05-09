@@ -586,10 +586,31 @@ function Dashboard({ articles, writers, settings, setSetting, saveSettings, setT
 
 // ── SUBMISSIONS TAB ───────────────────────────────────────────────────────────
 function Submissions({ articles, openId, setOpenId, editArt, setEditArt, dataLoading, loadArticles, rejectReason, setRejectReason, emailStatus, onSetStatus, onToggleFlag, onToggleFeature, onDelete, onSaveEdit, subscriberCount }) {
-  const [search, setSearch]     = useState("");
-  const [fStatus, setFStatus]   = useState("all");
-  const [fCat, setFCat]         = useState("all");
-  const [sendToNL, setSendToNL] = useState(false);
+  const [search, setSearch]         = useState("");
+  const [fStatus, setFStatus]       = useState("all");
+  const [fCat, setFCat]             = useState("all");
+  const [sendToNL, setSendToNL]     = useState(false);
+  const [editImgPreview, setEditImgPreview] = useState(null);
+  const [editImgUploading, setEditImgUploading] = useState(false);
+
+  async function uploadEditImg(file) {
+    setEditImgUploading(true);
+    const ext  = file.name.split(".").pop();
+    const path = `articles/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("article-images").upload(path, file, { upsert: true });
+    if (error) { setEditImgUploading(false); return null; }
+    const { data } = supabase.storage.from("article-images").getPublicUrl(path);
+    setEditImgUploading(false);
+    return data.publicUrl;
+  }
+
+  async function onEditImgChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setEditImgPreview(URL.createObjectURL(file));
+    const url = await uploadEditImg(file);
+    if (url) setEditArt(a => ({ ...a, image_url: url }));
+  }
 
   const filtered = articles.filter(a => {
     const ms = (a.headline || "").toLowerCase().includes(search.toLowerCase()) || (a.name || "").toLowerCase().includes(search.toLowerCase());
@@ -653,9 +674,30 @@ function Submissions({ articles, openId, setOpenId, editArt, setEditArt, dataLoa
           <Field label="Body">
             <textarea value={editArt.body || ""} onChange={e => setEditArt(a => ({ ...a, body: e.target.value }))} rows={5} style={{ ...INP, resize: "vertical", fontFamily: "Georgia,serif", lineHeight: 1.8 }} />
           </Field>
+          <Field label="Cover Image">
+            <div
+              onClick={() => document.getElementById("edit-img-input").click()}
+              style={{ border: `2px dashed ${(editImgPreview || editArt.image_url) ? T.accent : T.inputBorder}`, borderRadius: 4, cursor: "pointer", overflow: "hidden", textAlign: "center" }}
+            >
+              {editImgUploading ? (
+                <div style={{ padding: "20px 16px", fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted }}>Uploading…</div>
+              ) : (editImgPreview || editArt.image_url) ? (
+                <div style={{ position: "relative" }}>
+                  <img src={editImgPreview || editArt.image_url} alt="cover" style={{ width: "100%", maxHeight: 160, objectFit: "cover", display: "block" }} />
+                  <button
+                    onClick={e => { e.stopPropagation(); setEditImgPreview(null); setEditArt(a => ({ ...a, image_url: null })); }}
+                    style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", borderRadius: 3, padding: "3px 8px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+                  >Remove</button>
+                </div>
+              ) : (
+                <div style={{ padding: "20px 16px", fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted }}>⊞ Click to upload or replace cover image</div>
+              )}
+            </div>
+            <input id="edit-img-input" type="file" accept="image/*" onChange={onEditImgChange} style={{ display: "none" }} />
+          </Field>
           <div style={{ display: "flex", gap: 10 }}>
             <Btn onClick={onSaveEdit}>Save Changes</Btn>
-            <Btn variant="ghost" onClick={() => setEditArt(null)}>Cancel</Btn>
+            <Btn variant="ghost" onClick={() => { setEditArt(null); setEditImgPreview(null); }}>Cancel</Btn>
           </div>
         </div>
       )}
@@ -1884,7 +1926,7 @@ export default function CMS() {
 
   async function onSaveEdit() {
     if (!editArt) return;
-    const { error } = await supabase.from("submissions").update({ headline: editArt.headline, body: editArt.body, category: editArt.category, name: editArt.name, school: editArt.school }).eq("id", editArt.id);
+    const { error } = await supabase.from("submissions").update({ headline: editArt.headline, body: editArt.body, category: editArt.category, name: editArt.name, school: editArt.school, image_url: editArt.image_url ?? null }).eq("id", editArt.id);
     if (!error) { setArticles(prev => prev.map(x => x.id === editArt.id ? { ...x, ...editArt } : x)); setEditArt(null); showToast("Article updated."); }
     else showToast("Failed: " + error.message, T.red);
   }
