@@ -1498,8 +1498,7 @@ function Write({ showToast }) {
     setAiText("");
     try {
       const { data, error } = await supabase.functions.invoke("krynoai", {
-        body: JSON.stringify({ action, content: body, title, message: chatMsg }),
-        headers: { "Content-Type": "application/json" },
+        body: { action, content: body, title, message: chatMsg },
       });
       if (error) throw new Error(error.message);
       setAiText(data?.text || "No response received.");
