@@ -54,7 +54,7 @@ async function callGroq(messages: object[], apiKey: string) {
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: "llama-3.1-8b-instant", max_tokens: 1500, messages }),
+    body: JSON.stringify({ model: "llama-3.3-70b-versatile", max_tokens: 1500, messages }),
   });
   if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text()}`);
   const data = await res.json();
