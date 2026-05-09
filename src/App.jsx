@@ -1493,8 +1493,8 @@ function Write({ showToast }) {
       showToast("Write something in the article body first.", T.gold);
       return;
     }
-    if (action === "research" && !chatMsg && !title.trim() && !body.trim()) {
-      showToast("Add a headline or type a search topic in the chat box first.", T.gold);
+    if (action === "research" && !chatMsg.trim() && !title.trim() && !body.trim()) {
+      showToast("Type a search topic in the chat box, or add a headline first.", T.gold);
       return;
     }
     setAiLoading(true);
@@ -1629,7 +1629,7 @@ function Write({ showToast }) {
                 <button
                   key={a.id}
                   disabled={aiLoading}
-                  onClick={() => callAI(a.id)}
+                  onClick={() => callAI(a.id, a.id === "research" ? chat : "")}
                   style={{
                     background: aiAction === a.id && aiLoading ? T.accent + "18" : "transparent",
                     border: `1px solid ${aiAction === a.id && !aiLoading ? T.accent : T.border}`,
