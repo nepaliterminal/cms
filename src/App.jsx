@@ -691,26 +691,28 @@ function Submissions({ articles, openId, setOpenId, editArt, setEditArt, dataLoa
             <textarea value={editArt.body || ""} onChange={e => setEditArt(a => ({ ...a, body: e.target.value }))} rows={5} style={{ ...INP, resize: "vertical", fontFamily: "Georgia,serif", lineHeight: 1.8 }} />
           </Field>
           <Field label="Cover Image">
-            <div
-              onClick={() => document.getElementById("edit-img-input").click()}
-              onPaste={onEditImgPaste}
-              tabIndex={0}
-              style={{ border: `2px dashed ${(editImgPreview || editArt.image_url) ? T.accent : T.inputBorder}`, borderRadius: 4, cursor: "pointer", overflow: "hidden", textAlign: "center", outline: "none" }}
-            >
-              {editImgUploading ? (
-                <div style={{ padding: "20px 16px", fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted }}>Uploading…</div>
-              ) : (editImgPreview || editArt.image_url) ? (
-                <div style={{ position: "relative" }}>
-                  <img src={editImgPreview || editArt.image_url} alt="cover" style={{ width: "100%", maxHeight: 160, objectFit: "cover", display: "block" }} />
-                  <button
-                    onClick={e => { e.stopPropagation(); setEditImgPreview(null); setEditArt(a => ({ ...a, image_url: null })); }}
-                    style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", borderRadius: 3, padding: "3px 8px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
-                  >Remove</button>
-                </div>
-              ) : (
-                <div style={{ padding: "20px 16px", fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted }}>⊞ Click to upload · or click here then Ctrl+V to paste</div>
-              )}
-            </div>
+            {(editImgPreview || editArt.image_url) ? (
+              <div style={{ position: "relative", borderRadius: 4, overflow: "hidden" }}>
+                <img src={editImgPreview || editArt.image_url} alt="cover" style={{ width: "100%", maxHeight: 160, objectFit: "cover", display: "block" }} />
+                <button onClick={() => { setEditImgPreview(null); setEditArt(a => ({ ...a, image_url: null })); }} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", borderRadius: 3, padding: "3px 8px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>Remove</button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  style={{ ...INP, flex: 1 }}
+                  placeholder="Paste image URL…"
+                  onPaste={e => {
+                    const url = e.clipboardData.getData("text");
+                    if (url.startsWith("http")) { e.preventDefault(); setEditArt(a => ({ ...a, image_url: url })); setEditImgPreview(url); }
+                  }}
+                  onChange={e => {
+                    const url = e.target.value.trim();
+                    if (url) { setEditArt(a => ({ ...a, image_url: url })); setEditImgPreview(url); }
+                  }}
+                />
+                <Btn variant="ghost" size="sm" onClick={() => document.getElementById("edit-img-input").click()}>{editImgUploading ? "…" : "Upload"}</Btn>
+              </div>
+            )}
             <input id="edit-img-input" type="file" accept="image/*" onChange={onEditImgChange} style={{ display: "none" }} />
           </Field>
           <div style={{ display: "flex", gap: 10 }}>
@@ -1623,6 +1625,7 @@ function Write({ showToast }) {
     setSaving(true);
     let imageUrl = null;
     if (imgFile) { imageUrl = await uploadImg(imgFile); if (!imageUrl) { setSaving(false); return; } }
+    else if (imgPreview) { imageUrl = imgPreview; }
     const { error } = await supabase.from("submissions").insert([{
       headline: title.trim(),
       name: author.trim() || "Admin",
@@ -1691,27 +1694,32 @@ function Write({ showToast }) {
           </Field>
 
           <Field label="Cover Image">
-            <div
-              onClick={() => document.getElementById("write-img-input").click()}
-              onPaste={onImgPaste}
-              tabIndex={0}
-              style={{ border: `2px dashed ${imgPreview ? T.accent : T.inputBorder}`, borderRadius: 4, padding: imgPreview ? 0 : "24px 16px", cursor: "pointer", textAlign: "center", overflow: "hidden", position: "relative", outline: "none" }}
-            >
-              {imgPreview ? (
-                <div style={{ position: "relative" }}>
-                  <img src={imgPreview} alt="cover" style={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }} />
-                  <button
-                    onClick={e => { e.stopPropagation(); setImgFile(null); setImgPreview(null); }}
-                    style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", borderRadius: 3, padding: "4px 8px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
-                  >Remove</button>
-                </div>
-              ) : (
-                <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted }}>
-                  <div style={{ fontSize: 24, marginBottom: 6 }}>⊞</div>
-                  {imgUploading ? "Uploading…" : "Click to upload · or click here then Ctrl+V to paste"}
-                </div>
-              )}
-            </div>
+            {(imgPreview) ? (
+              <div style={{ position: "relative", borderRadius: 4, overflow: "hidden" }}>
+                <img src={imgPreview} alt="cover" style={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }} />
+                <button onClick={() => { setImgFile(null); setImgPreview(null); }} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", borderRadius: 3, padding: "4px 8px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>Remove</button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  style={{ ...INP, flex: 1 }}
+                  placeholder="Paste image URL…"
+                  onPaste={e => {
+                    const url = e.clipboardData.getData("text");
+                    if (url.match(/\.(jpg|jpeg|png|gif|webp|avif|svg)/i) || url.startsWith("http")) {
+                      e.preventDefault();
+                      setImgPreview(url);
+                      setImgFile(null);
+                    }
+                  }}
+                  onChange={e => {
+                    const url = e.target.value.trim();
+                    if (url) { setImgPreview(url); setImgFile(null); }
+                  }}
+                />
+                <Btn variant="ghost" size="sm" onClick={() => document.getElementById("write-img-input").click()}>{imgUploading ? "…" : "Upload"}</Btn>
+              </div>
+            )}
             <input id="write-img-input" type="file" accept="image/*" onChange={onImgChange} style={{ display: "none" }} />
           </Field>
 
