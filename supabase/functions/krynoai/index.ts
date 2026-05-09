@@ -98,11 +98,7 @@ Deno.serve(async (req) => {
         },
       ], groqKey);
 
-      const sourceList = (searchData.results || [])
-        .map((r: { title: string; url: string }, i: number) => `[${i + 1}] ${r.title} — ${r.url}`)
-        .join("\n");
-
-      return new Response(JSON.stringify({ text: synthesis + "\n\n── Sources ──\n" + sourceList }), {
+      return new Response(JSON.stringify({ text: synthesis }), {
         headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
