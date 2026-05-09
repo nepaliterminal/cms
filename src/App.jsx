@@ -1034,34 +1034,66 @@ function Writers({ writers, wAdding, onAdd, onUpdateBadge, onToggle, onDelete })
 }
 
 // ── POLLS TAB ─────────────────────────────────────────────────────────────────
-function Polls({ pollQ, setPollQ, pollOpts, setPollOpts, onSave }) {
+function Polls({ pollQ, setPollQ, pollOpts, setPollOpts, onSave, pollVotes, onResetVotes }) {
+  const total = pollOpts.reduce((s, o) => s + (pollVotes[o] || 0), 0);
   return (
     <div className="tab-enter">
       <SectionHead section="Engagement" title="Poll Manager" sub="Control the community poll shown on the website." />
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, padding: 28, maxWidth: 560, borderRadius: 3 }}>
-        <Field label="Poll Question">
-          <input value={pollQ} onChange={e => setPollQ(e.target.value)} style={INP} placeholder="What should we cover more?" />
-        </Field>
-        <Field label={`Answer Options (${pollOpts.length}/6)`}>
-          {pollOpts.map((opt, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
-              <span style={{ fontFamily: "Georgia,serif", fontWeight: 700, color: T.muted, fontSize: 14, width: 20, flexShrink: 0, textAlign: "right" }}>{i + 1}.</span>
-              <input
-                value={opt}
-                onChange={e => { const v = e.target.value; setPollOpts(o => { const n = [...o]; n[i] = v; return n; }); }}
-                style={{ ...INP, flex: 1 }}
-                placeholder={`Option ${i + 1}`}
-              />
-              {pollOpts.length > 2 && (
-                <Btn variant="danger" size="sm" onClick={() => setPollOpts(o => o.filter((_, j) => j !== i))}>✕</Btn>
-              )}
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, padding: 28, flex: "0 0 480px", borderRadius: 3 }}>
+          <Field label="Poll Question">
+            <input value={pollQ} onChange={e => setPollQ(e.target.value)} style={INP} placeholder="What should we cover more?" />
+          </Field>
+          <Field label={`Answer Options (${pollOpts.length}/6)`}>
+            {pollOpts.map((opt, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                <span style={{ fontFamily: "Georgia,serif", fontWeight: 700, color: T.muted, fontSize: 14, width: 20, flexShrink: 0, textAlign: "right" }}>{i + 1}.</span>
+                <input
+                  value={opt}
+                  onChange={e => { const v = e.target.value; setPollOpts(o => { const n = [...o]; n[i] = v; return n; }); }}
+                  style={{ ...INP, flex: 1 }}
+                  placeholder={`Option ${i + 1}`}
+                />
+                {pollOpts.length > 2 && (
+                  <Btn variant="danger" size="sm" onClick={() => setPollOpts(o => o.filter((_, j) => j !== i))}>✕</Btn>
+                )}
+              </div>
+            ))}
+            {pollOpts.length < 6 && (
+              <Btn variant="ghost" fullWidth size="sm" style={{ borderStyle: "dashed", marginTop: 4 }} onClick={() => setPollOpts(o => [...o, ""])}>+ Add Option</Btn>
+            )}
+          </Field>
+          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+            <Btn fullWidth size="lg" onClick={onSave}>Save Poll to Website</Btn>
+          </div>
+        </div>
+
+        {/* Live results */}
+        <div style={{ flex: 1, minWidth: 260, background: T.card, border: `1px solid ${T.border}`, padding: 28, borderRadius: 3 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: T.muted, marginBottom: 4 }}>Live Results</div>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: T.sub }}>{total} total vote{total !== 1 ? "s" : ""}</div>
             </div>
-          ))}
-          {pollOpts.length < 6 && (
-            <Btn variant="ghost" fullWidth size="sm" style={{ borderStyle: "dashed", marginTop: 4 }} onClick={() => setPollOpts(o => [...o, ""])}>+ Add Option</Btn>
-          )}
-        </Field>
-        <Btn fullWidth size="lg" onClick={onSave} style={{ marginTop: 8 }}>Save Poll to Website</Btn>
+            <Btn variant="danger" size="sm" onClick={onResetVotes}>Reset Votes</Btn>
+          </div>
+          {pollOpts.map(opt => {
+            const count = pollVotes[opt] || 0;
+            const pct   = total > 0 ? Math.round((count / total) * 100) : 0;
+            return (
+              <div key={opt} style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Inter,sans-serif", fontSize: 12, color: T.sub, marginBottom: 5 }}>
+                  <span style={{ fontWeight: 600 }}>{opt}</span>
+                  <span style={{ color: T.muted }}>{count} vote{count !== 1 ? "s" : ""} · {pct}%</span>
+                </div>
+                <div style={{ background: T.bg, border: `1px solid ${T.border}`, height: 8, borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ width: `${pct}%`, height: "100%", background: T.accent, borderRadius: 4, transition: "width 0.4s ease" }} />
+                </div>
+              </div>
+            );
+          })}
+          {total === 0 && <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted, fontStyle: "italic" }}>No votes yet.</div>}
+        </div>
       </div>
     </div>
   );
@@ -1848,6 +1880,7 @@ export default function CMS() {
   const [wAdding,       setWAdding]       = useState(false);
   const [pollQ,         setPollQ]         = useState("What should we cover more?");
   const [pollOpts,      setPollOpts]      = useState(["Climate & Environment", "School Policies", "Local Sports", "Youth Entrepreneurs"]);
+  const [pollVotes,     setPollVotes]     = useState({});
   const [settings,      setSettings]      = useState({
     siteName: "KrynoluxDC", tagline: "News by Kids. For the Community.",
     tickerMsg: "", announcementBanner: "", announcementColor: "#7B2FFF",
@@ -1887,7 +1920,12 @@ export default function CMS() {
 
   const loadSettings = useCallback(async () => {
     const { data } = await supabase.from("site_settings").select("*").eq("id", 1).maybeSingle();
-    if (data) setSettings(s => ({ ...s, ...data }));
+    if (data) {
+      setSettings(s => ({ ...s, ...data }));
+      if (data.pollQuestion) setPollQ(data.pollQuestion);
+      if (data.pollOptions)  setPollOpts(data.pollOptions);
+      if (data.pollVotes)    setPollVotes(data.pollVotes);
+    }
   }, []);
 
   const loadSubscribers = useCallback(async () => {
@@ -2084,6 +2122,13 @@ export default function CMS() {
     else showToast("Failed: " + error.message, T.red);
   }
 
+  async function onResetVotes() {
+    if (!window.confirm("Reset all poll votes to zero?")) return;
+    const { error } = await supabase.from("site_settings").update({ pollVotes: {} }).eq("id", 1);
+    if (!error) { setPollVotes({}); showToast("Votes reset.", T.gold); }
+    else showToast("Failed: " + error.message, T.red);
+  }
+
   function setSetting(key, value) { setSettings(s => ({ ...s, [key]: value })); }
 
   // ── Computed ───────────────────────────────────────────────────────────────
@@ -2105,7 +2150,7 @@ export default function CMS() {
     publish:     <Publish onPublish={onPublish} imgUploading={imgUploading} subscriberCount={subscribers.length} />,
     media:       <Media articles={articles} />,
     writers:     <Writers writers={writers} wAdding={wAdding} onAdd={onAddWriter} onUpdateBadge={onUpdateBadge} onToggle={onToggleWriter} onDelete={onDeleteWriter} />,
-    polls:       <Polls pollQ={pollQ} setPollQ={setPollQ} pollOpts={pollOpts} setPollOpts={setPollOpts} onSave={onSavePoll} />,
+    polls:       <Polls pollQ={pollQ} setPollQ={setPollQ} pollOpts={pollOpts} setPollOpts={setPollOpts} onSave={onSavePoll} pollVotes={pollVotes} onResetVotes={onResetVotes} />,
     schools:     <Schools schools={schools} onApprove={onApproveSchool} onReject={onRejectSchool} onDeleteSubdomain={onDeleteSubdomain} onDesignOverride={onDesignOverride} loading={schoolsLoading} />,
     analytics:   <Analytics articles={articles} writers={writers} subscribers={subscribers} onRefreshSubs={loadSubscribers} />,
     settings:    <Settings settings={settings} setSetting={setSetting} onSave={onSaveSettings} saving={settingsSaving} saved={settingsSaved} />,
