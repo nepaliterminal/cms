@@ -1539,7 +1539,6 @@ function Write({ showToast }) {
       flagged: false,
       featured: false,
       views: 0,
-      submitted_at: new Date().toISOString(),
     }]);
     setSaving(false);
     if (error) showToast("Save failed: " + error.message, T.red);
