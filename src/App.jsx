@@ -30,6 +30,7 @@ const BADGES = ["New Writer", "Contributor", "Rising Star", "Staff Writer", "Sen
 const TABS = [
   { id: "dashboard",   label: "Dashboard",   icon: "◈" },
   { id: "submissions", label: "Submissions",  icon: "✦" },
+  { id: "write",       label: "Write",        icon: "✍" },
   { id: "publish",     label: "Publish",      icon: "✎" },
   { id: "media",       label: "Media",        icon: "⊞" },
   { id: "writers",     label: "Writers",      icon: "◉" },
@@ -1473,6 +1474,225 @@ function Schools({ schools, onApprove, onReject, onDeleteSubdomain, onDesignOver
   );
 }
 
+// ── WRITE TAB ─────────────────────────────────────────────────────────────────
+function Write({ showToast }) {
+  const [title,    setTitle]    = useState("");
+  const [author,   setAuthor]   = useState("");
+  const [school,   setSchool]   = useState("");
+  const [category, setCategory] = useState(CATS[0]);
+  const [excerpt,  setExcerpt]  = useState("");
+  const [body,     setBody]     = useState("");
+  const [saving,   setSaving]   = useState(false);
+  const [aiText,   setAiText]   = useState("");
+  const [aiLoading,setAiLoading]= useState(false);
+  const [aiAction, setAiAction] = useState(null);
+  const [chat,     setChat]     = useState("");
+
+  async function callAI(action, chatMsg = "") {
+    if (!body.trim() && action !== "chat") {
+      showToast("Write something in the article body first.", T.gold);
+      return;
+    }
+    setAiLoading(true);
+    setAiAction(action);
+    setAiText("");
+    try {
+      const { data, error } = await supabase.functions.invoke("krynoai", {
+        body: JSON.stringify({ action, content: body, title, message: chatMsg }),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (error) throw new Error(error.message);
+      setAiText(data?.text || "No response received.");
+    } catch (e) {
+      setAiText("KrynoAI error: " + e.message);
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function applyToBody() {
+    if (!aiText) return;
+    const replaceActions = ["improve", "expand", "shorten", "intro"];
+    if (replaceActions.includes(aiAction)) {
+      setBody(aiText);
+    } else {
+      setBody(b => b + "\n\n---\n" + aiText);
+    }
+    setAiText("");
+  }
+
+  async function saveDraft() {
+    if (!title.trim()) { showToast("Headline is required.", T.red); return; }
+    if (!body.trim())  { showToast("Article body is required.", T.red); return; }
+    setSaving(true);
+    const { error } = await supabase.from("submissions").insert([{
+      headline: title.trim(),
+      name: author.trim() || "Admin",
+      school: school.trim(),
+      category,
+      excerpt: excerpt.trim(),
+      body: body.trim(),
+      status: "pending",
+      flagged: false,
+      featured: false,
+      views: 0,
+      submitted_at: new Date().toISOString(),
+    }]);
+    setSaving(false);
+    if (error) showToast("Save failed: " + error.message, T.red);
+    else {
+      showToast("Draft saved to Submissions.");
+      setTitle(""); setAuthor(""); setSchool(""); setExcerpt(""); setBody(""); setAiText("");
+    }
+  }
+
+  const AI_ACTIONS = [
+    { id: "improve",   label: "Improve Writing",   icon: "✦" },
+    { id: "headlines", label: "Suggest Headlines", icon: "★" },
+    { id: "intro",     label: "Write Intro",       icon: "¶" },
+    { id: "expand",    label: "Expand",            icon: "↕" },
+    { id: "shorten",   label: "Shorten",           icon: "↔" },
+    { id: "tone",      label: "Check Tone",        icon: "◎" },
+  ];
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 22, color: T.text, marginBottom: 4 }}>Write an Article</div>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: T.muted }}>Compose and polish your story with KrynoAI assistance.</div>
+      </div>
+
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+        {/* ── EDITOR PANEL ── */}
+        <div style={{ flex: "0 0 58%", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "28px 32px" }}>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: T.muted, marginBottom: 20 }}>Article Editor</div>
+
+          <Field label="Headline" required>
+            <input style={INP} value={title} onChange={e => setTitle(e.target.value)} placeholder="Write a compelling headline…" />
+          </Field>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <Field label="Author / Byline">
+              <input style={INP} value={author} onChange={e => setAuthor(e.target.value)} placeholder="Your name" />
+            </Field>
+            <Field label="School (optional)">
+              <input style={INP} value={school} onChange={e => setSchool(e.target.value)} placeholder="e.g. Dunbar Senior High" />
+            </Field>
+          </div>
+
+          <Field label="Category">
+            <select style={INP} value={category} onChange={e => setCategory(e.target.value)}>
+              {CATS.map(c => <option key={c}>{c}</option>)}
+            </select>
+          </Field>
+
+          <Field label="Excerpt" hint="2–3 sentence teaser shown on the homepage">
+            <textarea style={{ ...INP, minHeight: 68, resize: "vertical" }} value={excerpt} onChange={e => setExcerpt(e.target.value)} placeholder="Short summary of the article…" />
+          </Field>
+
+          <Field label="Article Body" required>
+            <textarea
+              style={{ ...INP, minHeight: 360, resize: "vertical", fontFamily: "Georgia,serif", fontSize: 15, lineHeight: 1.85 }}
+              value={body}
+              onChange={e => setBody(e.target.value)}
+              placeholder="Start writing here…"
+            />
+          </Field>
+
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+            <Btn variant="ghost" onClick={() => { setTitle(""); setAuthor(""); setSchool(""); setExcerpt(""); setBody(""); setAiText(""); }}>Clear</Btn>
+            <Btn variant="primary" disabled={saving} onClick={saveDraft}>{saving ? "Saving…" : "Save to Submissions"}</Btn>
+          </div>
+        </div>
+
+        {/* ── KRYNOAI PANEL ── */}
+        <div style={{ flex: 1, position: "sticky", top: 24 }}>
+          {/* Header */}
+          <div style={{ background: `linear-gradient(135deg, ${T.accent}, #4f46e5)`, borderRadius: "6px 6px 0 0", padding: "16px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>✦</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "Inter,sans-serif", fontWeight: 900, fontSize: 15, color: "#fff", letterSpacing: 0.5 }}>KrynoAI</div>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 9, color: "rgba(255,255,255,0.6)", letterSpacing: 1.2, textTransform: "uppercase" }}>Your Writing Assistant</div>
+            </div>
+            {aiLoading && <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>Thinking…</div>}
+          </div>
+
+          {/* Quick Actions */}
+          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderTop: "none", padding: "14px 14px 10px" }}>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 9, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: T.muted, marginBottom: 10 }}>Quick Actions</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              {AI_ACTIONS.map(a => (
+                <button
+                  key={a.id}
+                  disabled={aiLoading}
+                  onClick={() => callAI(a.id)}
+                  style={{
+                    background: aiAction === a.id && aiLoading ? T.accent + "18" : "transparent",
+                    border: `1px solid ${aiAction === a.id && !aiLoading ? T.accent : T.border}`,
+                    borderRadius: 4, padding: "8px 10px", cursor: aiLoading ? "not-allowed" : "pointer",
+                    fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 600,
+                    color: aiAction === a.id && !aiLoading ? T.accent : T.sub,
+                    display: "flex", alignItems: "center", gap: 6, textAlign: "left", opacity: aiLoading ? 0.6 : 1,
+                  }}
+                >
+                  <span style={{ fontSize: 11, opacity: 0.75 }}>{a.icon}</span>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Response Area */}
+          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderTop: "none", minHeight: 148, padding: "14px 16px" }}>
+            {aiLoading ? (
+              <div style={{ color: T.muted, fontFamily: "Inter,sans-serif", fontSize: 12, display: "flex", alignItems: "center", gap: 10, paddingTop: 16 }}>
+                <span style={{ fontSize: 20, display: "inline-block", animation: "tabEnter 0.8s infinite alternate" }}>◌</span>
+                KrynoAI is writing…
+              </div>
+            ) : aiText ? (
+              <div>
+                <div style={{ fontFamily: "Georgia,serif", fontSize: 13, lineHeight: 1.8, color: T.text, whiteSpace: "pre-wrap", maxHeight: 280, overflowY: "auto", marginBottom: 14, borderBottom: `1px solid ${T.divider}`, paddingBottom: 12 }}>
+                  {aiText}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn size="sm" variant="accent" onClick={applyToBody}>Apply to Article</Btn>
+                  <Btn size="sm" variant="ghost" onClick={() => setAiText("")}>Dismiss</Btn>
+                </div>
+              </div>
+            ) : (
+              <div style={{ color: T.muted, fontFamily: "Inter,sans-serif", fontSize: 12, paddingTop: 14, lineHeight: 1.8, fontStyle: "italic" }}>
+                Use a quick action above or ask me anything. I'll read your article and help you write better.
+              </div>
+            )}
+          </div>
+
+          {/* Chat Input */}
+          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderTop: "none", borderRadius: "0 0 6px 6px", padding: "12px 14px 14px" }}>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: T.muted, marginBottom: 8 }}>Ask KrynoAI</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              <textarea
+                style={{ ...INP, flex: 1, minHeight: 56, resize: "none", fontSize: 12 }}
+                value={chat}
+                onChange={e => setChat(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey && chat.trim()) {
+                    e.preventDefault();
+                    callAI("chat", chat.trim());
+                    setChat("");
+                  }
+                }}
+                placeholder="Ask anything… (Enter to send, Shift+Enter for newline)"
+              />
+              <Btn variant="accent" size="sm" disabled={aiLoading || !chat.trim()} onClick={() => { callAI("chat", chat.trim()); setChat(""); }}>Send</Btn>
+            </div>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 9, color: T.muted, marginTop: 7, letterSpacing: 0.3 }}>Powered by Claude · KrynoluxDC CMS</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── MAIN CMS ──────────────────────────────────────────────────────────────────
 export default function CMS() {
   const [loggedIn,      setLoggedIn]      = useState(false);
@@ -1748,6 +1968,7 @@ export default function CMS() {
   const tabContent = {
     dashboard:   <Dashboard articles={articles} writers={writers} settings={settings} setSetting={setSetting} saveSettings={onSaveSettings} setTab={navigate} setOpenId={setOpenId} dataLoading={dataLoading} pollOpts={pollOpts} />,
     submissions: <Submissions articles={articles} openId={openId} setOpenId={setOpenId} editArt={editArt} setEditArt={setEditArt} dataLoading={dataLoading} loadArticles={loadArticles} rejectReason={rejectReason} setRejectReason={setRejectReason} emailStatus={emailStatus} onSetStatus={onSetStatus} onToggleFlag={onToggleFlag} onToggleFeature={onToggleFeature} onDelete={onDelete} onSaveEdit={onSaveEdit} subscriberCount={subscribers.length} />,
+    write:       <Write showToast={showToast} />,
     publish:     <Publish onPublish={onPublish} imgUploading={imgUploading} subscriberCount={subscribers.length} />,
     media:       <Media articles={articles} />,
     writers:     <Writers writers={writers} wAdding={wAdding} onAdd={onAddWriter} onUpdateBadge={onUpdateBadge} onToggle={onToggleWriter} onDelete={onDeleteWriter} />,
