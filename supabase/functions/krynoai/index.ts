@@ -44,42 +44,40 @@ Deno.serve(async (req) => {
       userMsg = fn(content, title);
     }
 
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    const apiKey = Deno.env.get("GROQ_API_KEY");
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not set" }), {
+      return new Response(JSON.stringify({ error: "GROQ_API_KEY not set" }), {
         status: 500,
         headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
 
-    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5",
+        model: "llama-3.1-8b-instant",
         max_tokens: 1500,
-        system: SYSTEM,
-        messages: [{ role: "user", content: userMsg }],
+        messages: [
+          { role: "system", content: SYSTEM },
+          { role: "user", content: userMsg },
+        ],
       }),
     });
 
-    if (!anthropicRes.ok) {
-      const errBody = await anthropicRes.text();
-      return new Response(JSON.stringify({ error: `Anthropic API error ${anthropicRes.status}: ${errBody}` }), {
+    if (!groqRes.ok) {
+      const errBody = await groqRes.text();
+      return new Response(JSON.stringify({ error: `Groq API error ${groqRes.status}: ${errBody}` }), {
         status: 500,
         headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
 
-    const result = await anthropicRes.json();
-    const text = result.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("");
+    const result = await groqRes.json();
+    const text = result.choices?.[0]?.message?.content || "No response.";
 
     return new Response(JSON.stringify({ text }), {
       headers: { ...CORS, "Content-Type": "application/json" },
