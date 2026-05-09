@@ -44,9 +44,8 @@ Deno.serve(async (req) => {
     }
 
     const response = await client.messages.create({
-      model: "claude-opus-4-7",
+      model: "claude-haiku-4-5",
       max_tokens: 1500,
-      thinking: { type: "adaptive" },
       system: SYSTEM,
       messages: [{ role: "user", content: userMsg }],
     });
