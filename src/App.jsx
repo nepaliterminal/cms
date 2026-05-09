@@ -612,6 +612,22 @@ function Submissions({ articles, openId, setOpenId, editArt, setEditArt, dataLoa
     if (url) setEditArt(a => ({ ...a, image_url: url }));
   }
 
+  async function onEditImgPaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          setEditImgPreview(URL.createObjectURL(file));
+          const url = await uploadEditImg(file);
+          if (url) setEditArt(a => ({ ...a, image_url: url }));
+        }
+        break;
+      }
+    }
+  }
+
   const filtered = articles.filter(a => {
     const ms = (a.headline || "").toLowerCase().includes(search.toLowerCase()) || (a.name || "").toLowerCase().includes(search.toLowerCase());
     const mf = fStatus === "all" || a.status === fStatus;
@@ -677,7 +693,9 @@ function Submissions({ articles, openId, setOpenId, editArt, setEditArt, dataLoa
           <Field label="Cover Image">
             <div
               onClick={() => document.getElementById("edit-img-input").click()}
-              style={{ border: `2px dashed ${(editImgPreview || editArt.image_url) ? T.accent : T.inputBorder}`, borderRadius: 4, cursor: "pointer", overflow: "hidden", textAlign: "center" }}
+              onPaste={onEditImgPaste}
+              tabIndex={0}
+              style={{ border: `2px dashed ${(editImgPreview || editArt.image_url) ? T.accent : T.inputBorder}`, borderRadius: 4, cursor: "pointer", overflow: "hidden", textAlign: "center", outline: "none" }}
             >
               {editImgUploading ? (
                 <div style={{ padding: "20px 16px", fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted }}>Uploading…</div>
@@ -690,7 +708,7 @@ function Submissions({ articles, openId, setOpenId, editArt, setEditArt, dataLoa
                   >Remove</button>
                 </div>
               ) : (
-                <div style={{ padding: "20px 16px", fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted }}>⊞ Click to upload or replace cover image</div>
+                <div style={{ padding: "20px 16px", fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted }}>⊞ Click to upload · or click here then Ctrl+V to paste</div>
               )}
             </div>
             <input id="edit-img-input" type="file" accept="image/*" onChange={onEditImgChange} style={{ display: "none" }} />
@@ -1587,6 +1605,18 @@ function Write({ showToast }) {
     setImgPreview(URL.createObjectURL(file));
   }
 
+  function onImgPaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) { setImgFile(file); setImgPreview(URL.createObjectURL(file)); }
+        break;
+      }
+    }
+  }
+
   async function saveDraft() {
     if (!title.trim()) { showToast("Headline is required.", T.red); return; }
     if (!body.trim())  { showToast("Article body is required.", T.red); return; }
@@ -1663,7 +1693,9 @@ function Write({ showToast }) {
           <Field label="Cover Image">
             <div
               onClick={() => document.getElementById("write-img-input").click()}
-              style={{ border: `2px dashed ${imgPreview ? T.accent : T.inputBorder}`, borderRadius: 4, padding: imgPreview ? 0 : "24px 16px", cursor: "pointer", textAlign: "center", overflow: "hidden", position: "relative" }}
+              onPaste={onImgPaste}
+              tabIndex={0}
+              style={{ border: `2px dashed ${imgPreview ? T.accent : T.inputBorder}`, borderRadius: 4, padding: imgPreview ? 0 : "24px 16px", cursor: "pointer", textAlign: "center", overflow: "hidden", position: "relative", outline: "none" }}
             >
               {imgPreview ? (
                 <div style={{ position: "relative" }}>
@@ -1676,7 +1708,7 @@ function Write({ showToast }) {
               ) : (
                 <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: T.muted }}>
                   <div style={{ fontSize: 24, marginBottom: 6 }}>⊞</div>
-                  {imgUploading ? "Uploading…" : "Click to upload a cover image"}
+                  {imgUploading ? "Uploading…" : "Click to upload · or click here then Ctrl+V to paste"}
                 </div>
               )}
             </div>
